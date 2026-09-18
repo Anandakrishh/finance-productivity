@@ -1,0 +1,13 @@
+name = "pulse"
+main = "worker.js"
+compatibility_date = "2026-09-01"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "pulse-db"
+database_id = "cfefc4ec-c3e7-411b-8373-7dba48ba0e0c"
+
+[assets]
+directory = "dist"
+binding = "ASSETS"
+run_worker_first = true
