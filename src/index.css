@@ -24,8 +24,25 @@ body {
 }
 
 button, input, select, textarea { font: inherit; }
-button { cursor: pointer; }
+button { 
+  cursor: pointer; 
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
 ::selection { background: rgba(249, 115, 22, 0.35); color: #fff; }
+
+/* Mobile Hardware Acceleration & Fluid Compositing */
+aside {
+  -webkit-transform: translateZ(0);
+  transform: translateZ(0);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+nav[aria-label="Bottom Navigation Dock"] {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
 
 .liquid-card {
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -225,8 +242,8 @@ html.pulse-light aside {
   background-color: rgba(255, 255, 255, 0.95) !important;
   border-color: rgba(0, 0, 0, 0.09) !important;
   box-shadow: 0 24px 70px rgba(0, 0, 0, 0.12), inset 0 1px 1px rgba(255, 255, 255, 0.95) !important;
-  backdrop-filter: blur(36px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(36px) saturate(180%) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
   color: #18181b !important;
 }
 

@@ -75,17 +75,18 @@ function AppLayout() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md"
+              className="fixed inset-0 z-40 bg-black/65 sm:backdrop-blur-sm touch-manipulation cursor-pointer"
               onClick={() => setSidebarOpen(false)}
             />
 
-            {/* Floating Glassy Island Card */}
+            {/* Floating Glassy Island Card - Pure GPU transform slide */}
             <motion.aside
-              initial={{ x: -40, opacity: 0, scale: 0.95 }}
-              animate={{ x: 0, opacity: 1, scale: 1 }}
-              exit={{ x: -40, opacity: 0, scale: 0.95 }}
-              transition={{ type: "spring", damping: 28, stiffness: 320 }}
-              className="fixed left-3 sm:left-6 top-3 sm:top-6 bottom-3 sm:bottom-6 z-50 flex w-[320px] sm:w-[335px] max-w-[calc(100vw-24px)] flex-col rounded-[30px] sm:rounded-[34px] border border-white/[0.18] bg-stone-900/85 p-3.5 sm:p-4 backdrop-blur-3xl shadow-[0_24px_70px_rgba(0,0,0,0.7),inset_0_1px_1px_rgba(255,255,255,0.25)] overflow-hidden"
+              initial={{ x: "-110%", opacity: 0.9 }}
+              animate={{ x: 0, opacity: 1 }}
+              exit={{ x: "-110%", opacity: 0.9 }}
+              transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
+              style={{ willChange: "transform", transform: "translateZ(0)" }}
+              className="fixed left-3 sm:left-6 top-3 sm:top-6 bottom-3 sm:bottom-6 z-50 flex w-[320px] sm:w-[335px] max-w-[calc(100vw-24px)] flex-col rounded-[30px] sm:rounded-[34px] border border-white/[0.18] bg-stone-900/90 sm:bg-stone-900/85 p-3.5 sm:p-4 backdrop-blur-2xl shadow-[0_24px_70px_rgba(0,0,0,0.75),inset_0_1px_1px_rgba(255,255,255,0.25)] overflow-hidden touch-manipulation"
             >
               {/* 1. macOS Window Traffic Lights & Close */}
               <div className="flex items-center justify-between px-1.5 pt-1 pb-2">
@@ -155,7 +156,7 @@ function AppLayout() {
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Productivity</span>
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/[0.08] text-zinc-300">5</span>
                   </div>
-                  <div className="rounded-[22px] border border-white/[0.12] bg-white/[0.04] p-1.5 space-y-0.5 backdrop-blur-xl shadow-inner">
+                  <div className="rounded-[22px] border border-white/[0.12] bg-white/[0.04] p-1.5 space-y-0.5 shadow-inner">
                     <SubNavItem
                       label="Tasks"
                       icon={CheckSquare}
@@ -197,7 +198,7 @@ function AppLayout() {
                     <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">Finance & Wealth</span>
                     <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-white/[0.08] text-zinc-300">5</span>
                   </div>
-                  <div className="rounded-[22px] border border-white/[0.12] bg-white/[0.04] p-1.5 space-y-0.5 backdrop-blur-xl shadow-inner">
+                  <div className="rounded-[22px] border border-white/[0.12] bg-white/[0.04] p-1.5 space-y-0.5 shadow-inner">
                     <SubNavItem
                       label="Spending Calendar"
                       icon={CalendarDays}
@@ -233,10 +234,10 @@ function AppLayout() {
                 </div>
 
                 {/* Quick Action Card (Matching "Create new task" in Image 2) */}
-                <div className="rounded-[22px] border border-white/[0.14] bg-white/[0.05] p-3 text-center backdrop-blur-xl shadow-sm">
+                <div className="rounded-[22px] border border-white/[0.14] bg-white/[0.05] p-3 text-center shadow-sm">
                   <button
                     onClick={() => { go("/tasks"); }}
-                    className="group mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white shadow-lg shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all"
+                    className="group mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white shadow-lg shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all touch-manipulation"
                     title="Create new task"
                   >
                     <Plus size={20} className="transition-transform group-hover:rotate-90 duration-300" />
@@ -244,7 +245,7 @@ function AppLayout() {
                   <p className="text-xs font-semibold text-white">Create new task</p>
                   <button
                     onClick={() => { go("/transactions"); }}
-                    className="mt-0.5 text-[10px] text-zinc-400 hover:text-orange-300 transition"
+                    className="mt-0.5 text-[10px] text-zinc-400 hover:text-orange-300 transition touch-manipulation"
                   >
                     Or record transaction →
                   </button>
@@ -306,14 +307,14 @@ function AppLayout() {
         {/* Floating Bottom Dock (iOS Liquid Glass Style) */}
         <nav
           aria-label="Bottom Navigation Dock"
-          className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto"
+          className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto touch-manipulation select-none"
         >
-          <div className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-white/[0.16] bg-white/[0.08] p-1.5 sm:p-2 backdrop-blur-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]">
+          <div className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-white/[0.16] bg-white/[0.08] p-1.5 sm:p-2 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]">
             {/* 1. Home */}
             {activeSection === "home" && !sidebarOpen ? (
               <button
                 onClick={() => go("/")}
-                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-300"
+                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 touch-manipulation"
                 title="Home Dashboard"
               >
                 <Home size={16} className="text-zinc-950 shrink-0" />
@@ -322,7 +323,7 @@ function AppLayout() {
             ) : (
               <button
                 onClick={() => go("/")}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-200"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-150 touch-manipulation"
                 title="Home Dashboard"
               >
                 <Home size={18} />
@@ -333,7 +334,7 @@ function AppLayout() {
             {activeSection === "productivity" && !sidebarOpen ? (
               <button
                 onClick={() => go("/productivity")}
-                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-300"
+                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 touch-manipulation"
                 title="Productivity Hub"
               >
                 <Zap size={16} className="text-zinc-950 shrink-0" />
@@ -342,7 +343,7 @@ function AppLayout() {
             ) : (
               <button
                 onClick={() => go("/productivity")}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-200"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-150 touch-manipulation"
                 title="Productivity Hub"
               >
                 <Zap size={18} />
@@ -353,7 +354,7 @@ function AppLayout() {
             {activeSection === "finance" && !sidebarOpen ? (
               <button
                 onClick={() => go("/finance")}
-                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-300"
+                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 touch-manipulation"
                 title="Finance Cockpit"
               >
                 <Wallet size={16} className="text-zinc-950 shrink-0" />
@@ -362,7 +363,7 @@ function AppLayout() {
             ) : (
               <button
                 onClick={() => go("/finance")}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-200"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-150 touch-manipulation"
                 title="Finance Cockpit"
               >
                 <Wallet size={18} />
@@ -373,7 +374,7 @@ function AppLayout() {
             {sidebarOpen ? (
               <button
                 onClick={() => setSidebarOpen(false)}
-                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-300"
+                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 touch-manipulation"
                 title="Close Navigation"
               >
                 <X size={16} className="text-zinc-950 shrink-0" />
@@ -382,7 +383,7 @@ function AppLayout() {
             ) : (
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-200"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-150 touch-manipulation"
                 title="All Pages Menu"
               >
                 <Menu size={18} />
@@ -393,7 +394,7 @@ function AppLayout() {
             {activeSection === "settings" && !sidebarOpen ? (
               <button
                 onClick={() => go("/settings")}
-                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-300"
+                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 touch-manipulation"
                 title="Settings & Profile"
               >
                 <Settings size={16} className="text-zinc-950 shrink-0" />
@@ -402,7 +403,7 @@ function AppLayout() {
             ) : (
               <button
                 onClick={() => go("/settings")}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-200"
+                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-150 touch-manipulation"
                 title="Settings & Profile"
               >
                 <Settings size={18} />
