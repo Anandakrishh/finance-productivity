@@ -60,21 +60,12 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-bold tracking-tight text-white">PULSE</span>
                 <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-300">
-                  Life OS
+                  Anand's
                 </span>
               </div>
               <p className="text-[11px] text-zinc-400">Productivity & Personal Finance</p>
             </div>
           </div>
-
-          {/* Quick Sign In Shortcut */}
-          <button
-            onClick={onGetStarted}
-            className="group flex items-center gap-1.5 rounded-full border border-white/[0.12] bg-white/[0.04] px-4 py-2 text-xs font-medium text-zinc-300 transition-all hover:border-blue-400/40 hover:bg-blue-600/10 hover:text-white active:scale-95 touch-manipulation"
-          >
-            <span>Sign In</span>
-            <ArrowUpRight size={14} className="text-blue-400 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-          </button>
         </header>
 
         {/* Hero Section */}
