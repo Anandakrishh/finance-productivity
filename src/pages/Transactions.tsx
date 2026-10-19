@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { ArrowDownLeft, ArrowUpRight, Plus, Search, Trash2, Pencil, FileSpreadsheet } from "lucide-react";
 import { useAppData, type AppTransaction, type TransactionType } from "../context/AppDataContext";
-import { Button, Field, Input, LiquidCard, Modal, Select, MonthSelect, formatMoney, formatDate, pageClass } from "../components/AppUI";
+import { Button, Field, Input, LiquidCard, Modal, Select, MonthSelect, formatMoney, formatDate, pageClass, parseTransactionDate } from "../components/AppUI";
 import { exportFinancialStatementExcel } from "../lib/exportFinancialExcel";
 
 const categories = ["Salary", "Freelance", "Housing", "Food", "Shopping", "Transport", "Subscriptions", "Health", "Entertainment", "Other"];
@@ -31,7 +31,12 @@ function Transactions() {
 
   const monthTransactions = useMemo(() => {
     if (selectedMonth === "all") return data.transactions;
-    return data.transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
+    const [targetYear, targetMonth] = selectedMonth.split("-").map(Number);
+    if (!targetYear || !targetMonth) return data.transactions;
+    return data.transactions.filter(t => {
+      const parsed = parseTransactionDate(t.date);
+      return parsed && parsed.year === targetYear && parsed.month === targetMonth;
+    });
   }, [data.transactions, selectedMonth]);
 
   const list = useMemo(() => {

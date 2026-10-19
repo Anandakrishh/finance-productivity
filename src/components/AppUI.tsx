@@ -139,14 +139,38 @@ export function formatDate(value: string) {
   return new Date(`${value.slice(0,10)}T00:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 }
 
+export function parseTransactionDate(dateStr?: string): { year: number; month: number; day: number } | null {
+  if (!dateStr || typeof dateStr !== "string") return null;
+  const trimmed = dateStr.trim();
+  const isoMatch = trimmed.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const year = parseInt(isoMatch[1], 10);
+    const month = parseInt(isoMatch[2], 10);
+    const day = parseInt(isoMatch[3], 10);
+    if (!isNaN(year) && !isNaN(month) && !isNaN(day) && month >= 1 && month <= 12 && day >= 1 && day <= 31) {
+      return { year, month, day };
+    }
+  }
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    return {
+      year: d.getFullYear(),
+      month: d.getMonth() + 1,
+      day: d.getDate(),
+    };
+  }
+  return null;
+}
+
 export function getAvailableMonths(transactions: { date: string }[]) {
   const now = new Date();
   const currentYm = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const set = new Set<string>();
   set.add(currentYm);
   for (const t of transactions) {
-    if (t.date && t.date.length >= 7) {
-      set.add(t.date.slice(0, 7));
+    const parsed = parseTransactionDate(t.date);
+    if (parsed) {
+      set.add(`${parsed.year}-${String(parsed.month).padStart(2, "0")}`);
     }
   }
   const sorted = Array.from(set).sort((a, b) => b.localeCompare(a));

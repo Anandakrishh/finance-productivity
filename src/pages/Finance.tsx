@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Wallet, TrendingUp, PiggyBank, ArrowUpRight, ArrowDownRight, Receipt, Target, CreditCard, CalendarDays, FileSpreadsheet } from "lucide-react";
 import { AreaChart, Area, XAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useAppData } from "../context/AppDataContext";
-import { Button, LiquidCard, Metric, ProgressBar, MonthSelect, formatMoney, pageClass } from "../components/AppUI";
+import { Button, LiquidCard, Metric, ProgressBar, MonthSelect, formatMoney, pageClass, parseTransactionDate } from "../components/AppUI";
 import { exportFinancialStatementExcel } from "../lib/exportFinancialExcel";
 
 function Finance() {
@@ -29,7 +29,12 @@ function Finance() {
 
   const filteredTransactions = useMemo(() => {
     if (selectedMonth === "all") return data.transactions;
-    return data.transactions.filter(t => t.date && t.date.startsWith(selectedMonth));
+    const [targetYear, targetMonth] = selectedMonth.split("-").map(Number);
+    if (!targetYear || !targetMonth) return data.transactions;
+    return data.transactions.filter(t => {
+      const parsed = parseTransactionDate(t.date);
+      return parsed && parsed.year === targetYear && parsed.month === targetMonth;
+    });
   }, [data.transactions, selectedMonth]);
 
   const selectedMonthLabel = useMemo(() => {
@@ -38,8 +43,8 @@ function Finance() {
     return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
   }, [selectedMonth]);
 
-  const income = useMemo(() => filteredTransactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0), [filteredTransactions]);
-  const expenses = useMemo(() => filteredTransactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0), [filteredTransactions]);
+  const income = useMemo(() => filteredTransactions.filter(t => t.type === "income").reduce((s, t) => s + (Number(t.amount) || 0), 0), [filteredTransactions]);
+  const expenses = useMemo(() => filteredTransactions.filter(t => t.type === "expense").reduce((s, t) => s + (Number(t.amount) || 0), 0), [filteredTransactions]);
   const savings = income - expenses;
   const rate = income ? Math.round((savings / income) * 100) : 0;
 
@@ -48,19 +53,66 @@ function Finance() {
   const net = assets - liabilities;
 
   const chart = useMemo(() => {
-    const base = new Date();
-    return Array.from({ length: 6 }, (_, i) => {
-      const d = new Date(base.getFullYear(), base.getMonth() - (5 - i), 15);
-      const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const inc = data.transactions.filter(t => t.type === "income" && t.date.startsWith(ym)).reduce((s, t) => s + t.amount, 0);
-      const exp = data.transactions.filter(t => t.type === "expense" && t.date.startsWith(ym)).reduce((s, t) => s + t.amount, 0);
+    if (selectedMonth === "all") {
+      const now = new Date();
+      return Array.from({ length: 6 }, (_, i) => {
+        const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 15);
+        const targetYear = d.getFullYear();
+        const targetMonth = d.getMonth() + 1;
+
+        const inc = data.transactions
+          .filter(t => {
+            if (t.type !== "income") return false;
+            const parsed = parseTransactionDate(t.date);
+            return parsed && parsed.year === targetYear && parsed.month === targetMonth;
+          })
+          .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+
+        const exp = data.transactions
+          .filter(t => {
+            if (t.type !== "expense") return false;
+            const parsed = parseTransactionDate(t.date);
+            return parsed && parsed.year === targetYear && parsed.month === targetMonth;
+          })
+          .reduce((s, t) => s + (Number(t.amount) || 0), 0);
+
+        return {
+          label: d.toLocaleDateString("en-IN", { month: "short" }),
+          fullDate: d.toLocaleDateString("en-US", { month: "long", year: "numeric" }),
+          income: inc,
+          expenses: exp,
+        };
+      });
+    }
+
+    const [targetYear, targetMonth] = selectedMonth.split("-").map(Number);
+    const daysInMonth = new Date(targetYear, targetMonth, 0).getDate();
+
+    const dayIncome = new Map<number, number>();
+    const dayExpense = new Map<number, number>();
+
+    for (const t of filteredTransactions) {
+      const parsed = parseTransactionDate(t.date);
+      if (!parsed) continue;
+      const amt = Number(t.amount) || 0;
+      if (t.type === "income") {
+        dayIncome.set(parsed.day, (dayIncome.get(parsed.day) || 0) + amt);
+      } else if (t.type === "expense") {
+        dayExpense.set(parsed.day, (dayExpense.get(parsed.day) || 0) + amt);
+      }
+    }
+
+    return Array.from({ length: daysInMonth }, (_, idx) => {
+      const day = idx + 1;
+      const d = new Date(targetYear, targetMonth - 1, day);
       return {
-        month: d.toLocaleDateString("en-IN", { month: "short" }),
-        income: inc,
-        expenses: exp,
+        label: String(day),
+        fullDate: d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }),
+        income: dayIncome.get(day) || 0,
+        expenses: dayExpense.get(day) || 0,
       };
     });
-  }, [data.transactions]);
+  }, [data.transactions, filteredTransactions, selectedMonth]);
 
   const byCat = useMemo(() => {
     return Object.entries(
@@ -138,7 +190,13 @@ function Finance() {
           <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-white">Cash flow trend</p>
-              <p className="mt-0.5 text-xs text-zinc-500">6-month income versus expenses</p>
+              <p className="mt-0.5 text-xs text-zinc-500">
+                {selectedMonth === "all"
+                  ? "6-month income versus expenses"
+                  : income === 0 && expenses === 0
+                  ? `No cash flow activity recorded in ${selectedMonthLabel}`
+                  : `Daily income versus expenses · ${selectedMonthLabel}`}
+              </p>
             </div>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3 text-xs">
@@ -173,11 +231,13 @@ function Finance() {
                   </linearGradient>
                 </defs>
                 <XAxis
-                  dataKey="month"
+                  dataKey="label"
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: "#71717a", fontSize: 11, fontWeight: 500 }}
                   dy={6}
+                  minTickGap={16}
+                  interval={selectedMonth === "all" ? 0 : "preserveStartEnd"}
                 />
                 <Tooltip
                   contentStyle={{
@@ -187,6 +247,9 @@ function Finance() {
                     boxShadow: "0 20px 40px rgba(0, 0, 0, 0.7)",
                     backdropFilter: "blur(20px)",
                     fontSize: 12,
+                  }}
+                  labelFormatter={(_label, items) => {
+                    return items?.[0]?.payload?.fullDate || _label;
                   }}
                   formatter={(value: any, name: any) => [
                     formatMoney(Number(value) || 0),
