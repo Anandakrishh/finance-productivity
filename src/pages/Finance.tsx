@@ -96,7 +96,7 @@ function Finance() {
             <Receipt size={14} className="mr-2 inline" />Manage transactions
           </Button>
           <Button 
-            className="bg-orange-500/10 text-orange-400 border border-orange-500/20 hover:bg-orange-500/20" 
+            className="bg-[#2563FF]/15 text-[#60A5FA] border border-[#2563FF]/30 hover:bg-[#2563FF]/25" 
             onClick={handleExportExcel}
             disabled={exportingExcel}
           >
@@ -143,7 +143,7 @@ function Finance() {
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-3 text-xs">
                 <div className="flex items-center gap-1.5">
-                  <span className="h-2 w-2 rounded-full bg-orange-500 shadow-[0_0_8px_rgba(249,115,22,0.8)]" />
+                  <span className="h-2 w-2 rounded-full bg-[#2563FF] shadow-[0_0_8px_rgba(37,99,255,0.8)]" />
                   <span className="text-zinc-300 font-medium">Income</span>
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -163,9 +163,9 @@ function Finance() {
               <AreaChart data={chart} margin={{ top: 12, right: 8, left: 8, bottom: 4 }}>
                 <defs>
                   <linearGradient id="incomeGlow" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#f97316" stopOpacity={0.32} />
-                    <stop offset="65%" stopColor="#ea580c" stopOpacity={0.06} />
-                    <stop offset="100%" stopColor="#f97316" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#2563FF" stopOpacity={0.32} />
+                    <stop offset="65%" stopColor="#1D4ED8" stopOpacity={0.06} />
+                    <stop offset="100%" stopColor="#2563FF" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="expensesGlow" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#ffffff" stopOpacity={0.08} />
@@ -181,8 +181,8 @@ function Finance() {
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "rgba(18, 14, 12, 0.95)",
-                    border: "1px solid rgba(255, 255, 255, 0.1)",
+                    background: "rgba(10, 18, 34, 0.95)",
+                    border: "1px solid #1C2940",
                     borderRadius: "16px",
                     boxShadow: "0 20px 40px rgba(0, 0, 0, 0.7)",
                     backdropFilter: "blur(20px)",
@@ -197,11 +197,11 @@ function Finance() {
                 <Area
                   type="monotone"
                   dataKey="income"
-                  stroke="#f97316"
+                  stroke="#2563FF"
                   fill="url(#incomeGlow)"
                   strokeWidth={2.5}
                   dot={false}
-                  activeDot={{ r: 5, fill: "#ffffff", stroke: "#f97316", strokeWidth: 2.5 }}
+                  activeDot={{ r: 5, fill: "#ffffff", stroke: "#2563FF", strokeWidth: 2.5 }}
                 />
                 <Area
                   type="monotone"

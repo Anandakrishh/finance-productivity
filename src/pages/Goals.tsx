@@ -91,7 +91,7 @@ function Goals() {
     <div className={pageClass}>
       <div className="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[.2em] text-orange-400">Ambition & Direction</p>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[.2em] text-[#22B8FF]">Ambition & Direction</p>
           <h1 className="text-3xl font-bold tracking-tight text-white">Goals</h1>
           <p className="mt-1 text-sm text-zinc-500">
             Structured for 3 Months, 6 Months & 1 Year — tracking momentum from daily habits.
@@ -137,7 +137,7 @@ function Goals() {
             <LiquidCard key={g.id} hover className="p-6">
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3.5">
-                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-orange-500/10 text-orange-300 border border-orange-500/20">
+                  <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[#2563FF]/15 text-[#60A5FA] border border-[#2563FF]/30">
                     <Target size={19} />
                   </div>
                   <div>
@@ -146,7 +146,7 @@ function Goals() {
                       <span className="rounded-md bg-white/[0.05] px-2 py-0.5 text-[9px] font-semibold text-zinc-300">
                         {g.category}
                       </span>
-                      <span className="rounded-md bg-orange-500/10 px-2 py-0.5 text-[9px] font-semibold text-orange-300 border border-orange-500/20">
+                      <span className="rounded-md bg-[#2563FF]/15 px-2 py-0.5 text-[9px] font-semibold text-[#60A5FA] border border-[#2563FF]/30">
                         {tf}
                       </span>
                       <span
@@ -187,11 +187,11 @@ function Goals() {
 
               <div className="mt-4 flex items-center justify-between border-t border-white/[0.05] pt-3 text-[10px] text-zinc-500">
                 <span className="flex items-center gap-1.5">
-                  <CalendarDays size={12} className="text-orange-400" />
+                  <CalendarDays size={12} className="text-[#22B8FF]" />
                   <span>Target: {g.targetDate}</span>
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Flame size={12} className="text-amber-400" />
+                  <Flame size={12} className="text-cyan-400" />
                   <span>Habit momentum active</span>
                 </span>
               </div>

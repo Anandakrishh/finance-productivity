@@ -139,8 +139,8 @@ function getCategoryConfig(name: string, index: number) {
   }
   if (normalized.includes("emi") || normalized.includes("loan")) {
     return {
-      color: "text-orange-400",
-      tickBg: "bg-orange-400 shadow-[0_0_6px_rgba(249,115,22,0.6)]",
+      color: "text-blue-400",
+      tickBg: "bg-blue-400 shadow-[0_0_6px_rgba(37,99,255,0.6)]",
       icon: CreditCard,
     };
   }
@@ -150,7 +150,7 @@ function getCategoryConfig(name: string, index: number) {
     { color: "text-pink-400", tickBg: "bg-pink-400 shadow-[0_0_6px_rgba(236,72,153,0.6)]", icon: ShoppingBag },
     { color: "text-emerald-400", tickBg: "bg-emerald-400 shadow-[0_0_6px_rgba(16,185,129,0.6)]", icon: Utensils },
     { color: "text-cyan-400", tickBg: "bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.6)]", icon: Receipt },
-    { color: "text-amber-400", tickBg: "bg-amber-400 shadow-[0_0_6px_rgba(245,158,11,0.6)]", icon: Sparkles },
+    { color: "text-indigo-400", tickBg: "bg-indigo-400 shadow-[0_0_6px_rgba(129,140,248,0.6)]", icon: Sparkles },
   ];
   return fallbacks[index % fallbacks.length];
 }
@@ -280,7 +280,7 @@ function Dashboard() {
       return { label: "Steady Momentum", color: "text-amber-400" };
     }
     if (productivityScore > 0) {
-      return { label: "In Progress", color: "text-orange-400" };
+      return { label: "In Progress", color: "text-cyan-400" };
     }
     return { label: "Not started yet", color: "text-zinc-400" };
   }, [tasksToday.length, data.habits.length, productivityScore]);
@@ -371,14 +371,14 @@ function Dashboard() {
         "text-amber-400": "#fbbf24",
         "text-indigo-400": "#818cf8",
         "text-cyan-400": "#22d3ee",
-        "text-orange-400": "#fb923c",
+        "text-orange-400": "#3b82f6",
         "text-blue-400": "#60a5fa",
       };
       return categorySpends.map((c, i) => {
         const conf = getCategoryConfig(c.name, i);
         return {
           percent: c.amount / total,
-          color: colorMap[conf.color] || "#f97316",
+          color: colorMap[conf.color] || "#2563FF",
         };
       });
     }
@@ -435,7 +435,7 @@ function Dashboard() {
         <LiquidCard className="relative overflow-hidden p-6 sm:p-8">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-orange-400">
+              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[#22B8FF]">
                 Command Center
               </p>
               <h1 className="mt-2 text-3xl font-bold tracking-tight text-white sm:text-4xl">
@@ -448,7 +448,7 @@ function Dashboard() {
 
             {/* Live Clock Pill */}
             <div className="flex items-center gap-2 rounded-full border border-white/[0.1] bg-white/[0.05] px-3.5 py-1.5 backdrop-blur-xl shadow-sm">
-              <Clock size={13} className="text-orange-400 animate-pulse" />
+              <Clock size={13} className="text-[#22B8FF] animate-pulse" />
               <span className="font-mono text-xs font-semibold tracking-wider text-white">
                 {timeString}
               </span>
@@ -473,7 +473,7 @@ function Dashboard() {
               </span>
               <span className={`rounded-full px-2.5 py-1 text-[10px] font-semibold border ${
                 activeStreak > 0
-                  ? "bg-orange-500/10 text-orange-300 border-orange-500/20"
+                  ? "bg-blue-500/10 text-blue-300 border-blue-500/20"
                   : "bg-white/[0.04] text-zinc-400 border-white/[0.08]"
               }`}>
                 {activeStreak > 0 ? "Active Streak" : "Ready to Start"}
@@ -494,12 +494,12 @@ function Dashboard() {
 
           <div className="mt-6 flex items-center justify-between border-t border-white/[0.06] pt-4">
             <div className="flex items-center gap-2 text-xs text-zinc-400">
-              <Sparkles size={14} className={activeStreak > 0 ? "text-orange-400" : "text-zinc-500"} />
+              <Sparkles size={14} className={activeStreak > 0 ? "text-[#22B8FF]" : "text-zinc-500"} />
               <span>Status: <strong className="text-white">{activeStreak > 0 ? "Peak Flow" : "Standby"}</strong></span>
             </div>
             <button
               onClick={() => navigate("/productivity")}
-              className="text-xs font-medium text-orange-400 hover:text-orange-300 transition flex items-center gap-1"
+              className="text-xs font-medium text-[#22B8FF] hover:text-[#60A5FA] transition flex items-center gap-1"
             >
               Open Hub <ArrowUpRight size={13} />
             </button>
@@ -541,10 +541,10 @@ function Dashboard() {
               value={productivityScore}
               size={92}
               strokeWidth={8}
-              color1="#fb923c"
-              color2="#ea580c"
+              color1="#22B8FF"
+              color2="#2563FF"
             >
-              <Zap size={24} className={productivityScore > 0 ? "text-orange-400" : "text-zinc-500"} />
+              <Zap size={24} className={productivityScore > 0 ? "text-[#22B8FF]" : "text-zinc-500"} />
             </RadialProgress>
           </div>
         </LiquidCard>
@@ -577,7 +577,7 @@ function Dashboard() {
                   Tasks Today: <strong className={tasksToday.length > 0 ? "text-emerald-400" : "text-zinc-400"}>{tasksToday.length ? `${doneToday}/${tasksToday.length} Done` : "None scheduled"}</strong>
                 </p>
               </div>
-              <Activity size={24} className={productivityScore > 0 ? "text-orange-400" : "text-zinc-600"} />
+              <Activity size={24} className={productivityScore > 0 ? "text-[#22B8FF]" : "text-zinc-600"} />
             </div>
 
             <div className="mt-4 pt-1">
@@ -608,7 +608,7 @@ function Dashboard() {
                 onClick={openNewTask}
                 className="flex items-center gap-1 text-xs text-zinc-400 hover:text-white transition rounded-lg px-2 py-1 bg-white/[0.04] hover:bg-white/[0.08]"
               >
-                <Plus size={14} className="text-orange-400" />
+                <Plus size={14} className="text-[#22B8FF]" />
                 <span>Add</span>
               </button>
             </div>
@@ -630,7 +630,7 @@ function Dashboard() {
                     }}
                     className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-lg transition ${
                       t.completed
-                        ? "bg-orange-500 text-white shadow-sm shadow-orange-500/50"
+                        ? "bg-[#2563FF] text-white shadow-sm shadow-blue-500/50"
                         : "border border-white/20 text-transparent hover:border-white/40"
                     }`}
                   >
@@ -656,7 +656,7 @@ function Dashboard() {
                     className={`rounded-lg px-2.5 py-1 text-[9px] font-semibold tracking-wider uppercase ${
                       t.completed
                         ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
-                        : "bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                        : "bg-blue-500/10 text-blue-300 border border-blue-500/20"
                     }`}
                   >
                     {t.completed ? "Completed" : "In Progress"}
@@ -715,10 +715,10 @@ function Dashboard() {
                     className={`w-full rounded-lg transition-all duration-500 ${
                       item.isToday
                         ? item.rate > 0
-                          ? "bg-gradient-to-t from-orange-600 to-amber-500 shadow-[0_0_12px_rgba(249,115,22,0.6)]"
-                          : "bg-orange-500/30"
+                          ? "bg-gradient-to-t from-blue-600 to-cyan-400 shadow-[0_0_12px_rgba(34,184,255,0.6)]"
+                          : "bg-blue-500/30"
                         : item.rate > 0
-                        ? "bg-gradient-to-t from-zinc-700 to-zinc-500 hover:from-orange-950 hover:to-orange-800"
+                        ? "bg-gradient-to-t from-blue-950/70 to-blue-700/60 hover:from-blue-900 hover:to-blue-600"
                         : "bg-white/[0.05]"
                     }`}
                     style={{ height: item.rate > 0 ? `${item.rate}%` : "4px" }}
@@ -727,7 +727,7 @@ function Dashboard() {
                 </div>
                 <span
                   className={`text-[10px] font-medium ${
-                    item.isToday ? "text-orange-400 font-bold" : "text-zinc-500"
+                    item.isToday ? "text-[#22B8FF] font-bold" : "text-zinc-500"
                   }`}
                 >
                   {item.day}
@@ -749,7 +749,7 @@ function Dashboard() {
             </div>
             <button
               onClick={() => navigate("/calendar")}
-              className="text-xs text-orange-400 hover:text-orange-300 transition flex items-center gap-1"
+              className="text-xs text-[#22B8FF] hover:text-[#60A5FA] transition flex items-center gap-1"
             >
               Timeline <ChevronRight size={13} />
             </button>
@@ -827,7 +827,7 @@ function Dashboard() {
                   className="h-8 cursor-pointer appearance-none rounded-xl border border-white/[0.08] bg-white/[0.04] pl-3 pr-7 text-xs font-medium text-zinc-300 outline-none hover:bg-white/[0.08] transition"
                 >
                   {availableMonthsList.map((m) => (
-                    <option key={m.key} value={m.key} className="bg-[#110509] text-white">
+                    <option key={m.key} value={m.key} className="bg-[#0A1222] text-white">
                       {m.label}
                     </option>
                   ))}
@@ -850,7 +850,7 @@ function Dashboard() {
             <div className="mt-8">
               <div className="h-3 w-full rounded-full bg-white/[0.08] overflow-hidden p-[1px]">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-amber-500 via-orange-500 to-orange-600 shadow-[0_0_14px_rgba(249,115,22,0.5)] transition-all duration-700"
+                  className="h-full rounded-full bg-gradient-to-r from-blue-600 via-indigo-500 to-cyan-400 shadow-[0_0_14px_rgba(37,99,255,0.5)] transition-all duration-700"
                   style={{ width: `${Math.min(100, Math.max(3, budgetSpentPercent))}%` }}
                 />
               </div>
@@ -925,7 +925,7 @@ function Dashboard() {
                   onClick={() => setSpendingMonth(m.key)}
                   className={`rounded-full px-3 py-1 text-[11px] font-semibold transition ${
                     spendingMonth === m.key
-                      ? "bg-orange-500 text-white font-bold shadow-md shadow-orange-500/40"
+                      ? "bg-[#2563FF] text-white font-bold shadow-md shadow-blue-600/40"
                       : "text-zinc-400 hover:text-white hover:bg-white/[0.04]"
                   }`}
                 >

@@ -89,7 +89,7 @@ export function Metric({ icon, label, value, detail, trend }: { icon: ReactNode;
 }
 
 export function ProgressBar({ value, className = "" }: { value: number; className?: string }) {
-  return <div className={`h-1.5 overflow-hidden rounded-full bg-white/[0.055] ${className}`}><div className="h-full rounded-full bg-white transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} /></div>;
+  return <div className={`h-1.5 overflow-hidden rounded-full bg-white/[0.055] ${className}`}><div className="h-full rounded-full bg-gradient-to-r from-[#2563FF] to-[#22B8FF] transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, value))}%` }} /></div>;
 }
 
 export function EmptyState({ icon, title, description, action }: { icon: ReactNode; title: string; description: string; action?: ReactNode }) {
@@ -203,8 +203,8 @@ export function RadialProgress({
   size = 72,
   strokeWidth = 6.5,
   gradientId = "radGrad",
-  color1 = "#fb923c",
-  color2 = "#f97316",
+  color1 = "#22B8FF",
+  color2 = "#2563FF",
   trackColor = "rgba(255, 255, 255, 0.07)",
   children,
 }: {
@@ -262,11 +262,11 @@ export function WaveGraph({ className = "", height = 38 }: { className?: string;
     <div className={`w-full overflow-hidden ${className}`} style={{ height }}>
       <svg viewBox="0 0 400 48" preserveAspectRatio="none" className="h-full w-full">
         <defs>
-          <linearGradient id="waveCrimson" x1="0" y1="0" x2="1" y2="0">
-            <stop offset="0%" stopColor="#c2410c" stopOpacity="0.25" />
-            <stop offset="40%" stopColor="#ea580c" stopOpacity="0.95" />
-            <stop offset="70%" stopColor="#f97316" stopOpacity="1" />
-            <stop offset="100%" stopColor="#fdba74" stopOpacity="0.4" />
+          <linearGradient id="waveBlue" x1="0" y1="0" x2="1" y2="0">
+            <stop offset="0%" stopColor="#1E3A8A" stopOpacity="0.3" />
+            <stop offset="40%" stopColor="#2563FF" stopOpacity="0.95" />
+            <stop offset="70%" stopColor="#22B8FF" stopOpacity="1" />
+            <stop offset="100%" stopColor="#60A5FA" stopOpacity="0.5" />
           </linearGradient>
           <filter id="waveGlowFilter" x="-20%" y="-20%" width="140%" height="140%">
             <feGaussianBlur stdDeviation="2.5" result="blur" />
@@ -276,7 +276,7 @@ export function WaveGraph({ className = "", height = 38 }: { className?: string;
         <path
           d="M 0 30 Q 60 8 120 25 T 240 22 T 340 32 T 400 14"
           fill="none"
-          stroke="url(#waveCrimson)"
+          stroke="url(#waveBlue)"
           strokeWidth="2.8"
           strokeLinecap="round"
           filter="url(#waveGlowFilter)"
@@ -296,17 +296,17 @@ export function CrimsonHeatmap({
   const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
   const times = ["9 am", "11 am", "1 pm", "3 pm", "5 pm", "7 pm"];
 
-  // Activity level color classes for warm sunset amber aesthetic
+  // Activity level color classes for midnight navy, electric blue & cyan palette
   const getLevelColor = (level: number) => {
     switch (level) {
       case 1:
-        return "heatmap-cell-1 bg-orange-950/70 border border-orange-900/40";
+        return "heatmap-cell-1 bg-[#10264A] border border-[#1E3A8A]/60";
       case 2:
-        return "heatmap-cell-2 bg-orange-900/80 border border-orange-700/50 shadow-[0_0_8px_rgba(249,115,22,0.25)]";
+        return "heatmap-cell-2 bg-[#1E3A8A] border border-[#2563FF]/50 shadow-[0_0_8px_rgba(37,99,255,0.25)]";
       case 3:
-        return "heatmap-cell-3 bg-orange-600 border border-orange-500/70 shadow-[0_0_12px_rgba(249,115,22,0.45)]";
+        return "heatmap-cell-3 bg-[#2563FF] border border-[#3B82F6]/70 shadow-[0_0_12px_rgba(37,99,255,0.45)]";
       case 4:
-        return "heatmap-cell-4 bg-orange-500 border border-orange-400 shadow-[0_0_16px_rgba(251,146,60,0.8)]";
+        return "heatmap-cell-4 bg-[#22B8FF] border border-[#60A5FA] shadow-[0_0_16px_rgba(34,184,255,0.7)]";
       default:
         return "heatmap-cell-0 bg-white/[0.025] border border-white/[0.04]";
     }
@@ -337,10 +337,10 @@ export function CrimsonHeatmap({
         <div className="flex items-center gap-1.5 text-[9px] text-zinc-500">
           <span>Less</span>
           <span className="h-2.5 w-2.5 rounded-sm heatmap-legend-0 bg-white/[0.03] border border-white/[0.06]" />
-          <span className="h-2.5 w-2.5 rounded-sm heatmap-legend-1 bg-orange-950/70" />
-          <span className="h-2.5 w-2.5 rounded-sm heatmap-legend-2 bg-orange-900/80" />
-          <span className="h-2.5 w-2.5 rounded-sm heatmap-legend-3 bg-orange-600" />
-          <span className="h-2.5 w-2.5 rounded-sm heatmap-legend-4 bg-orange-500" />
+          <span className="h-2.5 w-2.5 rounded-sm heatmap-legend-1 bg-[#10264A] border border-[#1E3A8A]/60" />
+          <span className="h-2.5 w-2.5 rounded-sm heatmap-legend-2 bg-[#1E3A8A] border border-[#2563FF]/50" />
+          <span className="h-2.5 w-2.5 rounded-sm heatmap-legend-3 bg-[#2563FF] border border-[#3B82F6]/70" />
+          <span className="h-2.5 w-2.5 rounded-sm heatmap-legend-4 bg-[#22B8FF] border border-[#60A5FA]" />
           <span>More</span>
         </div>
       </div>

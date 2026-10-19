@@ -53,9 +53,9 @@ function getCategoryConfig(category: string) {
   }
   if (norm.includes("emi") || norm.includes("loan")) {
     return {
-      dot: "bg-orange-400",
-      iconBg: "bg-orange-500/20 border border-orange-500/30",
-      iconColor: "text-orange-400",
+      dot: "bg-blue-400",
+      iconBg: "bg-blue-500/20 border border-blue-500/30",
+      iconColor: "text-blue-400",
       icon: CreditCard,
     };
   }
@@ -379,7 +379,7 @@ function FinanceCalendar() {
                     </div>
 
                     {isToday && !isSelected && (
-                      <span className="absolute top-1 right-1 h-1 w-1 rounded-full bg-orange-500" />
+                      <span className="absolute top-1 right-1 h-1 w-1 rounded-full bg-[#2563FF]" />
                     )}
                   </button>
                 );
@@ -417,7 +417,7 @@ function FinanceCalendar() {
                 </p>
               </div>
 
-              <span className="rounded-full bg-orange-500/10 border border-orange-500/20 px-3 py-1 text-xs font-bold text-orange-300">
+              <span className="rounded-full bg-[#2563FF]/15 border border-[#2563FF]/30 px-3 py-1 text-xs font-bold text-[#60A5FA]">
                 {formatMoney(selectedDayTotal)}
               </span>
             </div>
@@ -481,7 +481,7 @@ function FinanceCalendar() {
                 </p>
                 <button
                   onClick={() => setShowAddModal(true)}
-                  className="text-xs font-medium text-orange-400 hover:text-orange-300 transition flex items-center gap-1"
+                  className="text-xs font-medium text-[#22B8FF] hover:text-[#60A5FA] transition flex items-center gap-1"
                 >
                   <Plus size={13} /> Add
                 </button>
@@ -495,7 +495,7 @@ function FinanceCalendar() {
                       <p className="text-[10px] text-zinc-500">{t.category} · {t.account || "Cash"}</p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="font-bold text-orange-300">
+                      <span className="font-bold text-[#60A5FA]">
                         -{formatMoney(t.amount)}
                       </span>
                       <button

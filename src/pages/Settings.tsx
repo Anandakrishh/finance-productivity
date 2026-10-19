@@ -175,7 +175,7 @@ function Settings(){
           <div className="space-y-1.5 rounded-xl border border-white/[0.08] bg-black/40 p-3 font-mono text-[11px] text-zinc-300">
             <p><span className="text-zinc-500 select-none">URL: </span>{window.location.origin}</p>
             <p><span className="text-zinc-500 select-none">Email: </span><span className="text-emerald-300 font-semibold">{createdAccount.email}</span></p>
-            <p><span className="text-zinc-500 select-none">Password: </span><span className="text-orange-300 font-semibold">{createdAccount.password}</span></p>
+            <p><span className="text-zinc-500 select-none">Password: </span><span className="text-[#60A5FA] font-semibold">{createdAccount.password}</span></p>
           </div>
           <div className="mt-3.5 flex flex-wrap gap-2">
             <Button
@@ -239,7 +239,7 @@ function Settings(){
                 onClick={generatePassword}
                 className="shrink-0 text-xs border border-white/[0.08]"
               >
-                <Sparkles size={13} className="mr-1 inline text-orange-400"/>Generate
+                <Sparkles size={13} className="mr-1 inline text-[#22B8FF]"/>Generate
               </Button>
             </div>
           </Field>
@@ -271,9 +271,9 @@ function Settings(){
     <LiquidCard className="p-5">
       <Header icon={<Database size={16}/>} title="Data & Statements" description="Export statement or manage backups"/>
       <div className="mt-5 space-y-3">
-        <div className="rounded-2xl border border-orange-500/20 bg-orange-500/[0.06] p-3">
+        <div className="rounded-2xl border border-[#2563FF]/30 bg-[#2563FF]/[0.08] p-3">
           <div className="mb-2.5 flex items-center gap-2.5">
-            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-500/15 text-orange-400">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#2563FF]/20 text-[#60A5FA]">
               <FileSpreadsheet size={16}/>
             </div>
             <div>
@@ -282,7 +282,7 @@ function Settings(){
             </div>
           </div>
           <Button 
-            className="w-full bg-gradient-to-r from-orange-500 to-amber-500 text-white font-medium shadow-md shadow-orange-500/20 hover:brightness-110" 
+            className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-medium shadow-md shadow-blue-500/25 hover:brightness-110" 
             onClick={handleExportExcel}
             disabled={exportingExcel}
           >

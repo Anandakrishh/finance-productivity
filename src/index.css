@@ -5,6 +5,36 @@
   color-scheme: dark;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+
+  /* Global Theme Tokens - Deep Navy & Electric Blue Palette */
+  --bg-primary: #030712;
+  --bg-secondary: #050B1A;
+  --bg-elevated: #081225;
+
+  --surface-primary: #0A1222;
+  --surface-secondary: #0D172A;
+  --surface-input: #111C30;
+
+  --accent-primary: #2563FF;
+  --accent-secondary: #3B82F6;
+  --accent-cyan: #22B8FF;
+  --accent-light: #60A5FA;
+  --accent-subtle: #10264A;
+
+  --text-primary: #F8FAFC;
+  --text-secondary: #A1AEC4;
+  --text-muted: #74829B;
+  --text-disabled: #56647B;
+
+  --border-primary: #1C2940;
+  --border-subtle: #172238;
+  --border-hover: #2D4B78;
+  --border-active: #2454A6;
+
+  --status-success: #34D399;
+  --status-warning: #FBBF24;
+  --status-error: #F87171;
+  --status-info: #60A5FA;
 }
 
 * { box-sizing: border-box; }
@@ -13,13 +43,13 @@ html, body, #root { min-height: 100%; margin: 0; width: 100%; }
 
 body {
   min-width: 320px;
-  background-color: #090807;
+  background-color: #030712;
   background-image: 
-    radial-gradient(circle at 85% 10%, rgba(249, 115, 22, 0.14) 0%, transparent 45%),
-    radial-gradient(circle at 10% 70%, rgba(234, 88, 12, 0.12) 0%, transparent 50%),
-    radial-gradient(circle at 50% 30%, rgba(251, 146, 60, 0.05) 0%, transparent 60%);
+    radial-gradient(circle at 85% 10%, rgba(37, 99, 255, 0.12) 0%, transparent 45%),
+    radial-gradient(circle at 10% 70%, rgba(34, 184, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 50% 30%, rgba(59, 130, 246, 0.05) 0%, transparent 60%);
   background-attachment: fixed;
-  color: #f4f4f5;
+  color: #F8FAFC;
   transition: background .25s ease, color .25s ease;
 }
 
@@ -29,7 +59,7 @@ button {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
-::selection { background: rgba(249, 115, 22, 0.35); color: #fff; }
+::selection { background: rgba(37, 99, 255, 0.4); color: #fff; }
 
 /* Mobile Hardware Acceleration & Fluid Compositing */
 aside {
@@ -45,35 +75,35 @@ nav[aria-label="Bottom Navigation Dock"] {
 }
 
 .liquid-card {
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #1C2940;
   background:
-    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.05), transparent 40%),
-    linear-gradient(150deg, rgba(255, 255, 255, 0.04), rgba(22, 16, 13, 0.55));
-  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+    radial-gradient(circle at 100% 0%, rgba(34, 184, 255, 0.04), transparent 40%),
+    linear-gradient(150deg, rgba(13, 23, 42, 0.75), rgba(10, 18, 34, 0.85));
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   border-radius: 26px;
   backdrop-filter: blur(28px) saturate(160%);
   -webkit-backdrop-filter: blur(28px) saturate(160%);
 }
 
 .liquid-card:hover {
-  border-color: rgba(255, 255, 255, 0.12);
+  border-color: #2D4B78;
 }
 
 .pill-dock {
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid #1C2940;
+  background: rgba(10, 18, 34, 0.8);
   backdrop-filter: blur(32px) saturate(180%);
   -webkit-backdrop-filter: blur(32px) saturate(180%);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45), inset 0 1px 1px rgba(255, 255, 255, 0.1);
   border-radius: 9999px;
 }
 
 .liquid-input {
   width: 100%;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid #1C2940;
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  color: #e4e4e7;
+  background: #111C30;
+  color: #F8FAFC;
   outline: none;
   padding: .68rem .85rem;
   font-size: .8rem;
@@ -81,13 +111,13 @@ nav[aria-label="Bottom Navigation Dock"] {
 }
 
 .liquid-input:focus {
-  border-color: rgba(249, 115, 22, 0.5);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.18);
+  border-color: #3B82F6;
+  background: #14223B;
+  box-shadow: 0 0 0 3px rgba(37, 99, 255, 0.2);
 }
 
-.liquid-input::placeholder { color: #71717a; }
-.liquid-input option { background: #140f0c; color: #e4e4e7; }
+.liquid-input::placeholder { color: #74829B; }
+.liquid-input option { background: #0A1222; color: #F8FAFC; }
 
 .liquid-glow {
   position: relative;
@@ -101,7 +131,7 @@ nav[aria-label="Bottom Navigation Dock"] {
   right: -100px;
   top: -140px;
   border-radius: 50%;
-  background: radial-gradient(circle, rgba(249, 115, 22, 0.16), transparent 70%);
+  background: radial-gradient(circle, rgba(37, 99, 255, 0.16), transparent 70%);
   filter: blur(45px);
   pointer-events: none;
 }
@@ -121,6 +151,7 @@ html.pulse-light {
 /* 1. Global & Layout Root Background */
 html.pulse-light body,
 html.pulse-light .pulse-app-root,
+html.pulse-light [class*="bg-[#030712]"],
 html.pulse-light [class*="bg-[#090807]"],
 html.pulse-light [class*="bg-[#07080a]"],
 html.pulse-light [class*="bg-[#0a0c0f]"] {
@@ -290,7 +321,7 @@ html.pulse-light .liquid-input {
 
 html.pulse-light .liquid-input:focus {
   background-color: #ffffff !important;
-  border-color: rgba(249, 115, 22, 0.6) !important;
+  border-color: rgba(37, 99, 255, 0.7) !important;
 }
 
 html.pulse-light .liquid-input option {
@@ -428,29 +459,29 @@ html.pulse-light .heatmap-legend-0 {
 
 html.pulse-light .heatmap-cell-1,
 html.pulse-light .heatmap-legend-1 {
-  background-color: rgba(249, 115, 22, 0.18) !important;
-  border-color: rgba(249, 115, 22, 0.28) !important;
+  background-color: rgba(37, 99, 255, 0.16) !important;
+  border-color: rgba(37, 99, 255, 0.28) !important;
 }
 
 html.pulse-light .heatmap-cell-2,
 html.pulse-light .heatmap-legend-2 {
-  background-color: rgba(249, 115, 22, 0.42) !important;
-  border-color: rgba(249, 115, 22, 0.55) !important;
-  box-shadow: 0 1px 4px rgba(249, 115, 22, 0.2) !important;
+  background-color: rgba(37, 99, 255, 0.38) !important;
+  border-color: rgba(37, 99, 255, 0.50) !important;
+  box-shadow: 0 1px 4px rgba(37, 99, 255, 0.2) !important;
 }
 
 html.pulse-light .heatmap-cell-3,
 html.pulse-light .heatmap-legend-3 {
-  background-color: #f97316 !important;
-  border-color: #ea580c !important;
-  box-shadow: 0 2px 8px rgba(249, 115, 22, 0.35) !important;
+  background-color: #2563FF !important;
+  border-color: #1D4ED8 !important;
+  box-shadow: 0 2px 8px rgba(37, 99, 255, 0.35) !important;
 }
 
 html.pulse-light .heatmap-cell-4,
 html.pulse-light .heatmap-legend-4 {
-  background-color: #ea580c !important;
-  border-color: #c2410c !important;
-  box-shadow: 0 3px 12px rgba(234, 88, 12, 0.5) !important;
+  background-color: #22B8FF !important;
+  border-color: #0284C7 !important;
+  box-shadow: 0 3px 12px rgba(34, 184, 255, 0.5) !important;
 }
 
 /* 12. Scrollbars in Light Mode */

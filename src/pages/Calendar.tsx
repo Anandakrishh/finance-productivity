@@ -153,7 +153,7 @@ function Calendar() {
         date: e.date,
         time: e.time || "14:00",
         detail: e.category + (e.location ? ` · ${e.location}` : ""),
-        color: "border-orange-500/30 bg-orange-500/15 text-orange-200",
+        color: "border-[#2563FF]/30 bg-[#2563FF]/15 text-[#60A5FA]",
       });
     });
 
@@ -255,7 +255,7 @@ function Calendar() {
       {/* Top Header */}
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-orange-400">
+          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#22B8FF]">
             Productivity Timeline
           </p>
           <h1 className="text-3xl font-bold tracking-tight text-white">Calendar</h1>
@@ -302,7 +302,7 @@ function Calendar() {
           </button>
           <button
             onClick={goToToday}
-            className="px-2 font-mono text-xs font-semibold text-white hover:text-orange-400 transition"
+            className="px-2 font-mono text-xs font-semibold text-white hover:text-[#22B8FF] transition"
             title="Click to jump to today"
           >
             {headerLabel}
@@ -324,7 +324,7 @@ function Calendar() {
               onClick={() => setActiveFilter(f)}
               className={`rounded-full px-3.5 py-1.5 text-xs font-medium capitalize transition-all ${
                 activeFilter === f
-                  ? "bg-orange-500/20 text-orange-300 border border-orange-500/30"
+                  ? "bg-[#2563FF]/20 text-[#60A5FA] border border-[#2563FF]/30"
                   : "bg-white/[0.02] text-zinc-500 hover:text-zinc-300 border border-white/[0.04] hover:bg-white/[0.05]"
               }`}
             >
@@ -366,7 +366,7 @@ function Calendar() {
                     }}
                     className={`group relative min-h-[85px] sm:min-h-[105px] p-2 rounded-2xl border transition-all cursor-pointer flex flex-col justify-between ${
                       isSelected
-                        ? "border-orange-500/50 bg-orange-500/10 shadow-lg"
+                        ? "border-[#2563FF]/50 bg-[#2563FF]/10 shadow-lg"
                         : d.isCurrentMonth
                         ? "border-white/[0.06] bg-white/[0.02] hover:bg-white/[0.05] hover:border-white/[0.12]"
                         : "border-white/[0.02] bg-black/20 opacity-40 hover:opacity-75"
@@ -376,7 +376,7 @@ function Calendar() {
                       <span
                         className={`flex h-6 w-6 items-center justify-center rounded-full text-xs font-bold ${
                           isToday
-                            ? "bg-orange-500 text-white shadow-md shadow-orange-500/40"
+                            ? "bg-[#2563FF] text-white shadow-md shadow-blue-500/40"
                             : "text-zinc-300"
                         }`}
                       >
@@ -437,7 +437,7 @@ function Calendar() {
                       <span
                         className={`mt-1 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
                           isToday
-                            ? "bg-orange-500 text-white shadow-md shadow-orange-500/40"
+                            ? "bg-[#2563FF] text-white shadow-md shadow-blue-500/40"
                             : "text-zinc-300"
                         }`}
                       >
@@ -542,7 +542,7 @@ function Calendar() {
 
               <button
                 onClick={() => setViewMode("weekly")}
-                className="text-xs font-semibold text-orange-400 hover:text-orange-300 transition"
+                className="text-xs font-semibold text-[#22B8FF] hover:text-[#60A5FA] transition"
               >
                 Switch to Weekly
               </button>

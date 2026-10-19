@@ -57,12 +57,12 @@ function AppLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#090807] text-white pulse-app-root transition-colors duration-200">
+    <div className="min-h-screen bg-[#030712] text-white pulse-app-root transition-colors duration-200">
       {/* Background ambient orbs */}
       <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden ambient-glow-container">
-        <div className="absolute -top-32 right-[-5%] h-[550px] w-[550px] rounded-full bg-orange-500/[0.12] blur-[125px]" />
-        <div className="absolute top-[35%] -left-32 h-[500px] w-[500px] rounded-full bg-amber-600/[0.10] blur-[135px]" />
-        <div className="absolute -bottom-24 right-[20%] h-[450px] w-[450px] rounded-full bg-orange-600/[0.08] blur-[145px]" />
+        <div className="absolute -top-32 right-[-5%] h-[550px] w-[550px] rounded-full bg-blue-600/[0.10] blur-[125px]" />
+        <div className="absolute top-[35%] -left-32 h-[500px] w-[500px] rounded-full bg-indigo-600/[0.08] blur-[135px]" />
+        <div className="absolute -bottom-24 right-[20%] h-[450px] w-[450px] rounded-full bg-cyan-600/[0.06] blur-[145px]" />
       </div>
 
       {/* Floating iOS / macOS Frosted Glass Sidebar Card (Image 2 Replica) */}
@@ -86,7 +86,7 @@ function AppLayout() {
               exit={{ x: "-110%", opacity: 0.9 }}
               transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
               style={{ willChange: "transform", transform: "translateZ(0)" }}
-              className="fixed left-3 sm:left-6 top-3 sm:top-6 bottom-3 sm:bottom-6 z-50 flex w-[320px] sm:w-[335px] max-w-[calc(100vw-24px)] flex-col rounded-[30px] sm:rounded-[34px] border border-white/[0.18] bg-stone-900/90 sm:bg-stone-900/85 p-3.5 sm:p-4 backdrop-blur-2xl shadow-[0_24px_70px_rgba(0,0,0,0.75),inset_0_1px_1px_rgba(255,255,255,0.25)] overflow-hidden touch-manipulation"
+              className="fixed left-3 sm:left-6 top-3 sm:top-6 bottom-3 sm:bottom-6 z-50 flex w-[320px] sm:w-[335px] max-w-[calc(100vw-24px)] flex-col rounded-[30px] sm:rounded-[34px] border border-[#1C2940] bg-[#0A1222]/95 sm:bg-[#0A1222]/90 p-3.5 sm:p-4 backdrop-blur-2xl shadow-[0_24px_70px_rgba(0,0,0,0.75),inset_0_1px_1px_rgba(255,255,255,0.12)] overflow-hidden touch-manipulation"
             >
               {/* 1. macOS Window Traffic Lights & Close */}
               <div className="flex items-center justify-between px-1.5 pt-1 pb-2">
@@ -110,9 +110,9 @@ function AppLayout() {
 
               {/* 2. User Profile Greeting Header */}
               <div className="flex items-center gap-3 px-1.5 py-2.5">
-                <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-orange-500 to-amber-300 text-zinc-950 font-black shadow-md shadow-orange-500/20">
+                <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-tr from-blue-600 to-cyan-400 text-white font-black shadow-md shadow-blue-500/25">
                   <span className="text-sm font-black tracking-tight">{avatarInitials}</span>
-                  <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-stone-900 bg-emerald-500" />
+                  <span className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-[#0A1222] bg-emerald-500" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-[11px] font-medium text-zinc-400">Good day 👋</p>
@@ -237,7 +237,7 @@ function AppLayout() {
                 <div className="rounded-[22px] border border-white/[0.14] bg-white/[0.05] p-3 text-center shadow-sm">
                   <button
                     onClick={() => { go("/tasks"); }}
-                    className="group mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-orange-500 to-amber-400 text-white shadow-lg shadow-orange-500/30 hover:scale-105 active:scale-95 transition-all touch-manipulation"
+                    className="group mx-auto mb-2 flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-tr from-blue-600 to-cyan-500 text-white shadow-lg shadow-blue-600/30 hover:scale-105 active:scale-95 transition-all touch-manipulation"
                     title="Create new task"
                   >
                     <Plus size={20} className="transition-transform group-hover:rotate-90 duration-300" />
@@ -245,7 +245,7 @@ function AppLayout() {
                   <p className="text-xs font-semibold text-white">Create new task</p>
                   <button
                     onClick={() => { go("/transactions"); }}
-                    className="mt-0.5 text-[10px] text-zinc-400 hover:text-orange-300 transition touch-manipulation"
+                    className="mt-0.5 text-[10px] text-zinc-400 hover:text-cyan-300 transition touch-manipulation"
                   >
                     Or record transaction →
                   </button>
@@ -277,7 +277,7 @@ function AppLayout() {
       {/* Main layout */}
       <div className="relative z-10 flex min-h-screen flex-col">
         {/* Sticky top header with ONLY the brand logo and date */}
-        <header className="sticky top-0 z-30 flex h-[66px] items-center justify-between border-b border-white/[0.08] bg-[#0c0a09]/40 px-4 backdrop-blur-2xl sm:px-6 lg:px-8">
+        <header className="sticky top-0 z-30 flex h-[66px] items-center justify-between border-b border-[#1C2940] bg-[#050B1A]/80 px-4 backdrop-blur-2xl sm:px-6 lg:px-8">
           {/* Left: Brand Logo only */}
           <div className="flex items-center gap-3">
             <button onClick={() => go("/")} className="flex items-center gap-2.5 text-left transition hover:opacity-90">
@@ -293,7 +293,7 @@ function AppLayout() {
           {/* Right: Clean date pill */}
           <div className="flex items-center gap-2">
             <div className="flex items-center gap-1.5 sm:gap-2 rounded-full border border-white/[0.12] bg-white/[0.06] px-3 sm:px-3.5 py-1.5 text-xs font-medium text-zinc-200 backdrop-blur-xl shadow-sm hover:bg-white/[0.09] transition-all">
-              <Clock3 size={13} className="text-orange-400" />
+              <Clock3 size={13} className="text-[#22B8FF]" />
               <span>{dateLabel}</span>
             </div>
           </div>
@@ -309,7 +309,7 @@ function AppLayout() {
           aria-label="Bottom Navigation Dock"
           className="fixed bottom-5 sm:bottom-6 left-1/2 -translate-x-1/2 z-50 pointer-events-auto touch-manipulation select-none"
         >
-          <div className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-white/[0.16] bg-white/[0.08] p-1.5 sm:p-2 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.2)]">
+          <div className="flex items-center gap-1 sm:gap-1.5 rounded-full border border-[#1C2940] bg-[#0A1222]/90 p-1.5 sm:p-2 backdrop-blur-2xl shadow-[0_20px_50px_rgba(0,0,0,0.5),inset_0_1px_1px_rgba(255,255,255,0.12)]">
             {/* 1. Home */}
             {activeSection === "home" && !sidebarOpen ? (
               <button

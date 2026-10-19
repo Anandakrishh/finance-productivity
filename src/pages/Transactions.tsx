@@ -94,7 +94,7 @@ function Transactions() {
             onClick={handleExportExcel}
             disabled={exportingExcel}
           >
-            <FileSpreadsheet size={14} className="mr-2 inline text-orange-400" />
+            <FileSpreadsheet size={14} className="mr-2 inline text-[#22B8FF]" />
             {exportingExcel ? "Exporting..." : "Export Excel (.xlsx)"}
           </Button>
           <Button onClick={openNew}>
