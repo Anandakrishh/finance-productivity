@@ -389,26 +389,6 @@ function AppLayout() {
                 <Menu size={18} />
               </button>
             )}
-
-            {/* 5. Settings */}
-            {activeSection === "settings" && !sidebarOpen ? (
-              <button
-                onClick={() => go("/settings")}
-                className="flex items-center gap-2 rounded-full bg-white px-3.5 sm:px-4 py-2 text-xs font-semibold text-zinc-950 shadow-[0_2px_8px_rgba(0,0,0,0.2),0_1px_2px_rgba(0,0,0,0.12)] transition-all duration-150 touch-manipulation"
-                title="Settings & Profile"
-              >
-                <Settings size={16} className="text-zinc-950 shrink-0" />
-                <span className="tracking-tight">Settings</span>
-              </button>
-            ) : (
-              <button
-                onClick={() => go("/settings")}
-                className="flex h-10 w-10 items-center justify-center rounded-full text-zinc-300 hover:bg-white/[0.12] hover:text-white active:scale-95 transition-all duration-150 touch-manipulation"
-                title="Settings & Profile"
-              >
-                <Settings size={18} />
-              </button>
-            )}
           </div>
         </nav>
       </div>
