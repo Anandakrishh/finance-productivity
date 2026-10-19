@@ -22,7 +22,12 @@ function applyAppearance(value:Appearance){
 }
 
 function Settings(){
- const [settings,setSettings]=useState<SettingsData>(load); const [saved,setSaved]=useState(false); const [exportingExcel,setExportingExcel]=useState(false); const {data}=useAppData(); const {user,signOut}=useAuth();
+ const {data, privacyMode, setPrivacyMode}=useAppData();
+ const [settings,setSettings]=useState<SettingsData>(() => {
+   const loaded = load();
+   return { ...loaded, privacy: privacyMode };
+ });
+ const [saved,setSaved]=useState(false); const [exportingExcel,setExportingExcel]=useState(false); const {user,signOut}=useAuth();
  const [dangerAction, setDangerAction] = useState<DangerAction>(null);
  const [dangerPassword, setDangerPassword] = useState("");
  const [showDangerPassword, setShowDangerPassword] = useState(false);
@@ -40,7 +45,17 @@ function Settings(){
  const [copied, setCopied] = useState(false);
 
  useEffect(()=>applyAppearance(settings.appearance),[]);
- const update=<K extends keyof SettingsData>(key:K,value:SettingsData[K])=>{const next={...settings,[key]:value};setSettings(next);localStorage.setItem(KEY,JSON.stringify(next));if(key==="appearance")applyAppearance(value as Appearance);};
+ useEffect(() => {
+   setSettings(s => s.privacy === privacyMode ? s : { ...s, privacy: privacyMode });
+ }, [privacyMode]);
+
+ const update=<K extends keyof SettingsData>(key:K,value:SettingsData[K])=>{
+   const next={...settings,[key]:value};
+   setSettings(next);
+   localStorage.setItem(KEY,JSON.stringify(next));
+   if(key==="appearance")applyAppearance(value as Appearance);
+   if(key==="privacy")setPrivacyMode(Boolean(value));
+ };
  const save=()=>{localStorage.setItem(KEY,JSON.stringify(settings));applyAppearance(settings.appearance);setSaved(true);setTimeout(()=>setSaved(false),1800)};
  const exportData=()=>{const payload={appName:"Finance",version:"2.0",exportedAt:new Date().toISOString(),settings,data};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`finance-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href)};
  const importData=(file:File)=>{const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(String(r.result));if(p.settings)localStorage.setItem(KEY,JSON.stringify({...defaults,...p.settings}));if(p.data)localStorage.setItem("pulse-app-data",JSON.stringify(p.data));alert("Backup imported. Reloading.");location.reload()}catch{alert("That backup file is not valid.")}};r.readAsText(file)};
@@ -431,5 +446,5 @@ function Settings(){
  </div>
 }
 function Header({icon,title,description}:{icon:React.ReactNode;title:string;description:string}){return <div className="flex items-center gap-3"><div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/[.05] text-zinc-400">{icon}</div><div><p className="text-sm font-medium">{title}</p><p className="mt-1 text-xs text-zinc-600">{description}</p></div></div>}
-function ToggleRow({label,description,checked,onChange}:{label:string;description:string;checked:boolean;onChange:(v:boolean)=>void}){return <div className="flex items-center justify-between gap-4 py-4"><div><p className="text-xs text-zinc-300">{label}</p><p className="mt-1 text-[10px] text-zinc-600">{description}</p></div><button onClick={()=>onChange(!checked)} className={`relative h-6 w-11 rounded-full transition ${checked?"bg-white":"bg-white/[.08]"}`}><span className={`absolute top-1 h-4 w-4 rounded-full transition ${checked?"left-6 bg-black":"left-1 bg-zinc-500"}`}/></button></div>}
+function ToggleRow({label,description,checked,onChange}:{label:string;description:string;checked:boolean;onChange:(v:boolean)=>void}){return <div className="flex items-center justify-between gap-4 py-4"><div><p className="text-xs text-zinc-300">{label}</p><p className="mt-1 text-[10px] text-zinc-600">{description}</p></div><button type="button" role="switch" aria-checked={checked} onClick={()=>onChange(!checked)} className={`relative h-6 w-11 rounded-full transition-colors duration-200 ${checked?"bg-[#2563FF] shadow-sm shadow-blue-500/40":"bg-white/[.12]"}`}><span className={`absolute top-1 h-4 w-4 rounded-full transition-all duration-200 ${checked?"left-6 bg-white shadow-sm":"left-1 bg-zinc-400"}`}/></button></div>}
 export default Settings;

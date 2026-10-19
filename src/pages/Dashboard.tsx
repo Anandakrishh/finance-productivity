@@ -156,7 +156,7 @@ function getCategoryConfig(name: string, index: number) {
 }
 
 function Dashboard() {
-  const { data, setTasks } = useAppData();
+  const { data, setTasks, privacyMode } = useAppData();
   const navigate = useNavigate();
 
   // 1. Live Digital Clock & Greeting
@@ -864,7 +864,7 @@ function Dashboard() {
                       {formatMoney(totalMonthExpense)}
                     </span>
                     <span className="rounded-full bg-white/[0.08] border border-white/[0.06] px-2 py-0.5 text-[10px] font-semibold text-zinc-300">
-                      {budgetSpentPercent}%
+                      {privacyMode ? "••%" : `${budgetSpentPercent}%`}
                     </span>
                   </div>
                 </div>

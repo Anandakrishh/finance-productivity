@@ -7,7 +7,7 @@ import { Button, LiquidCard, Metric, ProgressBar, MonthSelect, formatMoney, page
 import { exportFinancialStatementExcel } from "../lib/exportFinancialExcel";
 
 function Finance() {
-  const { data } = useAppData();
+  const { data, privacyMode } = useAppData();
   const navigate = useNavigate();
   const [selectedMonth, setSelectedMonth] = useState<string>("all");
   const [exportingExcel, setExportingExcel] = useState(false);
@@ -123,7 +123,7 @@ function Finance() {
           icon={<PiggyBank size={17} />}
           label="Savings"
           value={formatMoney(savings)}
-          detail={`${rate}% savings rate${selectedMonth !== "all" ? ` · ${selectedMonthLabel}` : ""}`}
+          detail={`${privacyMode ? "••%" : `${rate}%`} savings rate${selectedMonth !== "all" ? ` · ${selectedMonthLabel}` : ""}`}
         />
         <Metric
           icon={<Wallet size={17} />}

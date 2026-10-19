@@ -113,7 +113,7 @@ function getMonthDays(year: number, month: number) {
 }
 
 function FinanceCalendar() {
-  const { data, setTransactions } = useAppData();
+  const { data, setTransactions, privacyMode } = useAppData();
   const navigate = useNavigate();
 
   const today = useMemo(() => new Date(), []);
@@ -449,7 +449,7 @@ function FinanceCalendar() {
 
                     <div className="text-right">
                       <span className="text-base font-bold text-white">
-                        {item.percent}%
+                        {privacyMode ? "••%" : `${item.percent}%`}
                       </span>
                     </div>
                   </div>

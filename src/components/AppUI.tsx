@@ -96,8 +96,42 @@ export function EmptyState({ icon, title, description, action }: { icon: ReactNo
   return <div className="flex min-h-[220px] flex-col items-center justify-center text-center"><div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/[0.045] text-zinc-500">{icon}</div><p className="text-sm font-medium">{title}</p><p className="mt-1 max-w-sm text-xs leading-5 text-zinc-600">{description}</p>{action && <div className="mt-4">{action}</div>}</div>;
 }
 
-export function formatMoney(value: number, currency = "₹") {
+function getInitialPrivacyMode(): boolean {
+  if (typeof window === "undefined") return false;
+  try {
+    const raw = localStorage.getItem("pulse-settings");
+    if (!raw) return false;
+    const parsed = JSON.parse(raw);
+    return Boolean(parsed?.privacy);
+  } catch {
+    return false;
+  }
+}
+
+let _globalPrivacyMode = getInitialPrivacyMode();
+
+export function setGlobalPrivacyMode(enabled: boolean) {
+  _globalPrivacyMode = enabled;
+}
+
+export function getGlobalPrivacyMode(): boolean {
+  return _globalPrivacyMode;
+}
+
+export function formatMoney(value: number, currency = "₹", privacyOverride?: boolean) {
+  const isPrivate = privacyOverride !== undefined ? privacyOverride : _globalPrivacyMode;
+  if (isPrivate) {
+    return `${currency} ••••••`;
+  }
   return `${currency}${Math.round(value).toLocaleString("en-IN")}`;
+}
+
+export function formatPercent(value: number | string, privacyOverride?: boolean) {
+  const isPrivate = privacyOverride !== undefined ? privacyOverride : _globalPrivacyMode;
+  if (isPrivate) {
+    return "••%";
+  }
+  return typeof value === "number" ? `${value}%` : `${value}`;
 }
 
 export function formatDate(value: string) {

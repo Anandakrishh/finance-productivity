@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from "react";
 import { api } from "../lib/api";
+import { setGlobalPrivacyMode } from "../components/AppUI";
 
 export type Priority = "Low" | "Medium" | "High";
 export type GoalStatus = "On track" | "At risk" | "Completed";
@@ -141,6 +142,8 @@ export type AppData = {
 type AppDataContextType = {
   data: AppData;
   loading: boolean;
+  privacyMode: boolean;
+  setPrivacyMode: (value: boolean | ((prev: boolean) => boolean)) => void;
   setTasks: React.Dispatch<React.SetStateAction<AppTask[]>>;
   setGoals: React.Dispatch<React.SetStateAction<AppGoal[]>>;
   setHabits: React.Dispatch<React.SetStateAction<AppHabit[]>>;
@@ -494,6 +497,37 @@ export function AppDataProvider({
   const [loading, setLoading] = useState(true);
   const hydrating = useRef(true);
 
+  const [privacyMode, setPrivacyModeState] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    try {
+      const raw = localStorage.getItem("pulse-settings");
+      if (!raw) return false;
+      const parsed = JSON.parse(raw);
+      return Boolean(parsed?.privacy);
+    } catch {
+      return false;
+    }
+  });
+
+  const setPrivacyMode = (action: boolean | ((prev: boolean) => boolean)) => {
+    setPrivacyModeState((prev) => {
+      const next = typeof action === "function" ? action(prev) : action;
+      setGlobalPrivacyMode(next);
+      try {
+        const raw = localStorage.getItem("pulse-settings");
+        const parsed = raw ? JSON.parse(raw) : {};
+        localStorage.setItem("pulse-settings", JSON.stringify({ ...parsed, privacy: next }));
+      } catch (e) {
+        console.error("Failed to save privacy mode setting", e);
+      }
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    setGlobalPrivacyMode(privacyMode);
+  }, [privacyMode]);
+
   useEffect(() => {
     let cancelled = false;
     hydrating.current = true;
@@ -701,6 +735,8 @@ export function AppDataProvider({
       emis,
     },
     loading,
+    privacyMode,
+    setPrivacyMode,
     setTasks,
     setGoals,
     setHabits,
