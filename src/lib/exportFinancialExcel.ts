@@ -355,8 +355,8 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
 
   // Row 6..8: 3 Cards for Monthly Cash Reconciliation
   renderCard(6, 1, 8, 2, "Opening Monthly Balance", openingBalanceVal);
-  renderCard(6, 3, 8, 4, "Total Period Income (+)", { formula: "'Transactions'!F4", result: totalIncomeVal });
-  renderCard(6, 5, 8, 6, "Closing Monthly Balance", { formula: "'Transactions'!F7", result: closingBalanceVal });
+  renderCard(6, 3, 8, 4, "Total Period Income (+)", totalIncomeVal);
+  renderCard(6, 5, 8, 6, "Closing Monthly Balance", { formula: "A7+C11", result: closingBalanceVal });
 
   wsOv.getRow(6).height = 18;
   wsOv.getRow(7).height = 20;
@@ -364,9 +364,9 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsOv.getRow(9).height = 10; // Visual spacer
 
   // Row 10..12: 3 Cards for Operating Cash Flow & Wealth
-  renderCard(10, 1, 12, 2, "Total Period Expenses (-)", { formula: "'Transactions'!F5", result: totalExpenseVal });
-  renderCard(10, 3, 12, 4, "Net Operating Cash Flow", { formula: "'Transactions'!F6", result: netCashFlowVal });
-  renderCard(10, 5, 12, 6, "Consolidated Net Worth", { formula: "'Net Worth Statement'!D" + (tangibleAssets.length + data.liabilities.length + 13), result: netWorthVal });
+  renderCard(10, 1, 12, 2, "Total Period Expenses (-)", totalExpenseVal);
+  renderCard(10, 3, 12, 4, "Net Operating Cash Flow", { formula: "C7-A11", result: netCashFlowVal });
+  renderCard(10, 5, 12, 6, "Consolidated Net Worth", netWorthVal);
 
   wsOv.getRow(10).height = 18;
   wsOv.getRow(11).height = 20;
@@ -387,15 +387,15 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     { label: "1. Opening Monthly Cash & Bank Balance (B/F)", val: openingBalanceVal, fmt: currencyNumFmt, note: `Liquid cash & bank as of ${periodStartDateStr}` },
     { label: "2. Total Cash Inflows (Period Income)", val: totalIncomeVal, fmt: currencyNumFmt, note: `${incomeTx.length} income credit transactions` },
     { label: "3. Total Cash Outflows (Period Expenses)", val: totalExpenseVal, fmt: currencyNumFmt, note: `${expenseTx.length} expense debit transactions` },
-    { label: "4. Net Operating Cash Flow / Monthly Surplus", val: netCashFlowVal, fmt: currencyNumFmt, note: "Operating cash retained from period activities" },
-    { label: "5. Closing Monthly Cash & Bank Balance (C/F)", val: closingBalanceVal, fmt: currencyNumFmt, note: `Projected liquid cash as of ${periodEndDateStr}` },
-    { label: "6. Personal Savings Rate %", val: savingsRateVal, fmt: percentFmt, note: "Target benchmark: 20% - 40%" },
+    { label: "4. Net Operating Cash Flow / Monthly Surplus", val: { formula: "D16-D17", result: netCashFlowVal }, fmt: currencyNumFmt, note: "Operating cash retained from period activities" },
+    { label: "5. Closing Monthly Cash & Bank Balance (C/F)", val: { formula: "D15+D18", result: closingBalanceVal }, fmt: currencyNumFmt, note: `Projected liquid cash as of ${periodEndDateStr}` },
+    { label: "6. Personal Savings Rate %", val: { formula: "IF(D16>0, D18/D16, 0)", result: savingsRateVal }, fmt: percentFmt, note: "Target benchmark: 20% - 40%" },
     { label: "7. Investment Portfolio Market Value", val: totalPortfolioCurrentVal, fmt: currencyNumFmt, note: `${data.investments.length} investment assets held` },
     { label: "8. Portfolio Cumulative Unrealized Gain / Loss", val: totalPortfolioGainVal, fmt: currencyNumFmt, note: totalInvestedVal > 0 ? `ROI: ${((totalPortfolioGainVal / totalInvestedVal) * 100).toFixed(1)}%` : "0.0%" },
     { label: "9. Recurring Monthly Loan Commitments (EMIs)", val: totalMonthlyEmiVal, fmt: currencyNumFmt, note: `${data.emis.length} active structured debt obligations` },
     { label: "10. Total Outstanding Contractual Debt (EMIs)", val: totalRemainingDebtVal, fmt: currencyNumFmt, note: "Projected remaining contractual debt" },
     { label: "11. Total Assets & Wealth Holdings", val: totalAssetsVal, fmt: currencyNumFmt, note: "Liquid cash, portfolio & tangible assets" },
-    { label: "12. Consolidated Net Worth (Assets – Liabilities)", val: netWorthVal, fmt: currencyNumFmt, note: "True total financial equity" },
+    { label: "12. Consolidated Net Worth (Assets – Liabilities)", val: { formula: "D25-D24", result: netWorthVal }, fmt: currencyNumFmt, note: "True total financial equity" },
   ];
 
   let curRow = 15;
