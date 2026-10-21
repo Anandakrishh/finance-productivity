@@ -44,6 +44,79 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
 
   const allTx = [...filteredTransactions].sort((a, b) => (b.date || "").localeCompare(a.date || ""));
 
+  const periodStartDateStr = startDate || (filteredTransactions.length > 0
+    ? filteredTransactions.reduce((min, t) => (!min || (t.date && t.date < min) ? t.date.slice(0, 10) : min), "")
+    : `${todayStr.slice(0, 7)}-01`);
+
+  const periodEndDateStr = endDate || todayStr;
+
+  // ==========================================
+  // CASH FLOW & OPENING / CLOSING BALANCE CALCULATIONS
+  // ==========================================
+  const totalIncomeVal = incomeTx.reduce((s, t) => s + t.amount, 0);
+  const totalExpenseVal = expenseTx.reduce((s, t) => s + t.amount, 0);
+  const netCashFlowVal = totalIncomeVal - totalExpenseVal;
+  const savingsRateVal = totalIncomeVal > 0 ? netCashFlowVal / totalIncomeVal : 0;
+
+  // Calculate prior transactions before the selected start date
+  const priorIncome = data.transactions
+    .filter((t) => t.type === "income" && t.date && t.date.slice(0, 10) < periodStartDateStr)
+    .reduce((s, t) => s + t.amount, 0);
+
+  const priorExpense = data.transactions
+    .filter((t) => t.type === "expense" && t.date && t.date.slice(0, 10) < periodStartDateStr)
+    .reduce((s, t) => s + t.amount, 0);
+
+  const priorNetCash = priorIncome - priorExpense;
+
+  // Check recorded Bank & Cash assets from Net Worth
+  const bankCashAssets = data.assets.filter((a) => {
+    const t = (a.type || "").toLowerCase();
+    const n = (a.name || "").toLowerCase();
+    return t === "bank" || t === "cash" || n.includes("bank") || n.includes("cash") || n.includes("savings") || n.includes("checking");
+  });
+  const currentBankCashVal = bankCashAssets.reduce((s, a) => s + a.value, 0);
+
+  // Opening monthly balance:
+  // If user has bank/cash assets recorded, opening balance is base cash + prior net
+  // (or current cash minus this period's net flow). Otherwise prior accumulated net flow.
+  let openingBalanceVal = 0;
+  if (currentBankCashVal > 0) {
+    openingBalanceVal = Math.max(0, currentBankCashVal - netCashFlowVal);
+  } else if (priorNetCash !== 0) {
+    openingBalanceVal = Math.max(0, priorNetCash);
+  } else {
+    // If starting fresh or all-time, initial cash baseline
+    openingBalanceVal = 0;
+  }
+
+  const closingBalanceVal = openingBalanceVal + netCashFlowVal;
+
+  // Investments
+  const totalInvestedVal = data.investments.reduce((s, i) => s + i.invested, 0);
+  const totalPortfolioCurrentVal = data.investments.reduce((s, i) => s + i.current, 0);
+  const totalPortfolioGainVal = totalPortfolioCurrentVal - totalInvestedVal;
+
+  // Debt & EMIs
+  const totalMonthlyEmiVal = data.emis.reduce((s, e) => s + e.monthlyEmi, 0);
+  const totalRemainingDebtVal = data.emis.reduce((s, e) => {
+    const remMonths = Math.max(0, e.totalTenureMonths - e.paidMonths);
+    return s + (e.monthlyEmi * remMonths);
+  }, 0);
+
+  // Tangible assets (excluding bank/cash to avoid double counting with liquid balance)
+  const tangibleAssets = data.assets.filter((a) => {
+    const t = (a.type || "").toLowerCase();
+    const n = (a.name || "").toLowerCase();
+    return !(t === "bank" || t === "cash" || n.includes("bank") || n.includes("cash") || n.includes("savings") || n.includes("checking"));
+  });
+  const tangibleAssetsVal = tangibleAssets.reduce((s, a) => s + a.value, 0);
+
+  const effectiveLiquidCashVal = currentBankCashVal > 0 ? currentBankCashVal : Math.max(0, closingBalanceVal);
+  const totalAssetsVal = tangibleAssetsVal + effectiveLiquidCashVal + totalPortfolioCurrentVal;
+  const totalLiabilitiesVal = data.liabilities.reduce((s, l) => s + l.amount, 0) + totalRemainingDebtVal;
+  const netWorthVal = totalAssetsVal - totalLiabilitiesVal;
+
   const workbook = new ExcelJS.Workbook();
   workbook.creator = "AK Finance Intelligence";
   workbook.lastModifiedBy = userName;
@@ -182,26 +255,6 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     });
   };
 
-  // Pre-calculated metrics
-  const totalIncomeVal = incomeTx.reduce((s, t) => s + t.amount, 0);
-  const totalExpenseVal = expenseTx.reduce((s, t) => s + t.amount, 0);
-  const netCashFlowVal = totalIncomeVal - totalExpenseVal;
-  const savingsRateVal = totalIncomeVal > 0 ? netCashFlowVal / totalIncomeVal : 0;
-
-  const totalInvestedVal = data.investments.reduce((s, i) => s + i.invested, 0);
-  const totalPortfolioCurrentVal = data.investments.reduce((s, i) => s + i.current, 0);
-  const totalPortfolioGainVal = totalPortfolioCurrentVal - totalInvestedVal;
-
-  const totalMonthlyEmiVal = data.emis.reduce((s, e) => s + e.monthlyEmi, 0);
-  const totalRemainingDebtVal = data.emis.reduce((s, e) => {
-    const remMonths = Math.max(0, e.totalTenureMonths - e.paidMonths);
-    return s + (e.monthlyEmi * remMonths);
-  }, 0);
-
-  const totalAssetsVal = data.assets.reduce((s, a) => s + a.value, 0) + totalPortfolioCurrentVal;
-  const totalLiabilitiesVal = data.liabilities.reduce((s, l) => s + l.amount, 0) + totalRemainingDebtVal;
-  const netWorthVal = totalAssetsVal - totalLiabilitiesVal;
-
   // ==========================================
   // SHEET 1: EXECUTIVE STATEMENT & KPI DASHBOARD
   // ==========================================
@@ -248,7 +301,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsOv.getRow(3).height = 18;
   wsOv.getRow(4).height = 18;
 
-  // KPI Summary Cards (Row 6–9)
+  // KPI Summary Cards
   const renderCard = (
     rStart: number,
     cStart: number,
@@ -291,34 +344,38 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     }
   };
 
-  // Row 6..8: 3 Cards across columns A..B, C..D, E..F
-  renderCard(6, 1, 8, 2, "Net Worth", netWorthVal);
-  renderCard(6, 3, 8, 4, "Total Assets & Portfolio", totalAssetsVal);
-  renderCard(6, 5, 8, 6, "Total Debt & Liabilities", totalLiabilitiesVal);
+  // Row 6..8: 3 Cards for Monthly Cash Reconciliation
+  renderCard(6, 1, 8, 2, "Opening Monthly Balance", openingBalanceVal);
+  renderCard(6, 3, 8, 4, "Total Period Income (+)", totalIncomeVal);
+  renderCard(6, 5, 8, 6, "Closing Monthly Balance", closingBalanceVal);
 
-  // Row 10..12: 3 Cards for Cash Flow
-  renderCard(10, 1, 12, 2, "Total Income (Period)", totalIncomeVal);
-  renderCard(10, 3, 12, 4, "Total Expenses (Period)", totalExpenseVal);
-  renderCard(10, 5, 12, 6, "Net Cash Flow / Savings", netCashFlowVal);
+  // Row 10..12: 3 Cards for Operating Cash Flow & Wealth
+  renderCard(10, 1, 12, 2, "Total Period Expenses (-)", totalExpenseVal);
+  renderCard(10, 3, 12, 4, "Net Operating Cash Flow", netCashFlowVal);
+  renderCard(10, 5, 12, 6, "Consolidated Net Worth", netWorthVal);
 
-  // Section Header: Executive Financial Breakdown
+  // Section Header: Executive Financial Breakdown & Cash Flow
   wsOv.mergeCells("A14:F14");
   const s14 = wsOv.getCell("A14");
-  s14.value = "EXECUTIVE FINANCIAL POSITION & OBLIGATIONS BREAKDOWN";
+  s14.value = "EXECUTIVE CASH FLOW & FINANCIAL RECONCILIATION";
   s14.font = fontSection;
   s14.fill = fillSection;
   s14.alignment = alignLeft;
   wsOv.getRow(14).height = 24;
 
   const summaryMetrics = [
-    { label: "Net Operating Surplus (Income – Expenses)", val: netCashFlowVal, fmt: currencyNumFmt, note: "Retained liquid operating capital" },
-    { label: "Personal Savings Rate %", val: savingsRateVal, fmt: percentFmt, note: "Target benchmark: 20% - 40%" },
-    { label: "Investment Portfolio Market Value", val: totalPortfolioCurrentVal, fmt: currencyNumFmt, note: `${data.investments.length} investment assets held` },
-    { label: "Portfolio Cumulative Unrealized Gain / Loss", val: totalPortfolioGainVal, fmt: currencyNumFmt, note: totalInvestedVal > 0 ? `ROI: ${((totalPortfolioGainVal / totalInvestedVal) * 100).toFixed(1)}%` : "0.0%" },
-    { label: "Recurring Monthly Loan Commitments (EMIs)", val: totalMonthlyEmiVal, fmt: currencyNumFmt, note: `${data.emis.length} active structured debt obligations` },
-    { label: "Total Outstanding Loan Principal (EMIs)", val: totalRemainingDebtVal, fmt: currencyNumFmt, note: "Projected remaining contractual debt" },
-    { label: "Target Capital for Active Savings Goals", val: data.savingsGoals.reduce((s, g) => s + g.target, 0), fmt: currencyNumFmt, note: `${data.savingsGoals.length} committed savings goals` },
-    { label: "Total Capital Saved to Goals", val: data.savingsGoals.reduce((s, g) => s + g.saved, 0), fmt: currencyNumFmt, note: "Capital currently locked in savings goals" },
+    { label: "1. Opening Monthly Cash & Bank Balance (B/F)", val: openingBalanceVal, fmt: currencyNumFmt, note: `Liquid cash & bank as of ${periodStartDateStr}` },
+    { label: "2. Total Cash Inflows (Period Income)", val: totalIncomeVal, fmt: currencyNumFmt, note: `${incomeTx.length} income credit transactions` },
+    { label: "3. Total Cash Outflows (Period Expenses)", val: totalExpenseVal, fmt: currencyNumFmt, note: `${expenseTx.length} expense debit transactions` },
+    { label: "4. Net Operating Cash Flow / Monthly Surplus", val: netCashFlowVal, fmt: currencyNumFmt, note: "Operating cash retained from period activities" },
+    { label: "5. Closing Monthly Cash & Bank Balance (C/F)", val: closingBalanceVal, fmt: currencyNumFmt, note: `Projected liquid cash as of ${periodEndDateStr}` },
+    { label: "6. Personal Savings Rate %", val: savingsRateVal, fmt: percentFmt, note: "Target benchmark: 20% - 40%" },
+    { label: "7. Investment Portfolio Market Value", val: totalPortfolioCurrentVal, fmt: currencyNumFmt, note: `${data.investments.length} investment assets held` },
+    { label: "8. Portfolio Cumulative Unrealized Gain / Loss", val: totalPortfolioGainVal, fmt: currencyNumFmt, note: totalInvestedVal > 0 ? `ROI: ${((totalPortfolioGainVal / totalInvestedVal) * 100).toFixed(1)}%` : "0.0%" },
+    { label: "9. Recurring Monthly Loan Commitments (EMIs)", val: totalMonthlyEmiVal, fmt: currencyNumFmt, note: `${data.emis.length} active structured debt obligations` },
+    { label: "10. Total Outstanding Contractual Debt (EMIs)", val: totalRemainingDebtVal, fmt: currencyNumFmt, note: "Projected remaining contractual debt" },
+    { label: "11. Total Assets & Wealth Holdings", val: totalAssetsVal, fmt: currencyNumFmt, note: "Liquid cash, portfolio & tangible assets" },
+    { label: "12. Consolidated Net Worth (Assets – Liabilities)", val: netWorthVal, fmt: currencyNumFmt, note: "True total financial equity" },
   ];
 
   let curRow = 15;
@@ -436,7 +493,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsOv.getColumn("F").width = 24;
 
   // ==========================================
-  // SHEET 2: ALL TRANSACTIONS (CASH FLOW LEDGER)
+  // SHEET 2: ALL TRANSACTIONS (CASH FLOW LEDGER WITH OPENING BALANCE)
   // ==========================================
   const wsTx = workbook.addWorksheet("Transactions", {
     views: [{ showGridLines: true, state: "frozen", ySplit: 1 }],
@@ -452,7 +509,34 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsTx.getRow(1).getCell(6).alignment = alignRight;
   for (let c = 1; c <= 6; c++) wsTx.getRow(1).getCell(c).border = borderThin;
 
-  let txRow = 2;
+  // Row 2: OPENING MONTHLY BALANCE ROW
+  const rOpenRow = wsTx.getRow(2);
+  rOpenRow.values = [
+    periodStartDateStr,
+    "OPENING MONTHLY CASH & BANK BALANCE (B/F)",
+    "Opening Balance",
+    "Balance",
+    "All Bank & Cash Accounts",
+    openingBalanceVal,
+  ];
+  rOpenRow.getCell(1).alignment = alignCenter;
+  rOpenRow.getCell(1).numFmt = "YYYY-MM-DD";
+  rOpenRow.getCell(2).alignment = alignLeft;
+  rOpenRow.getCell(3).alignment = alignLeft;
+  rOpenRow.getCell(4).alignment = alignCenter;
+  rOpenRow.getCell(5).alignment = alignLeft;
+  rOpenRow.getCell(6).alignment = alignRight;
+  rOpenRow.getCell(6).numFmt = currencyNumFmt;
+
+  for (let c = 1; c <= 6; c++) {
+    const cell = rOpenRow.getCell(c);
+    cell.font = { name: "Segoe UI", size: 10, bold: true, color: THEME.navyDark };
+    cell.fill = fillSection;
+    cell.border = borderThin;
+  }
+  rOpenRow.height = 22;
+
+  let txRow = 3;
   allTx.forEach((t, idx) => {
     const r = wsTx.getRow(txRow);
     r.values = [
@@ -493,15 +577,37 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
 
   // Total summary rows on Transactions sheet
   const txEndDataRow = txRow - 1;
+
+  // 1. Opening Balance Summary
+  const rTotOpen = wsTx.getRow(txRow);
+  rTotOpen.values = [
+    "OPENING MONTHLY BALANCE (B/F)",
+    "",
+    "",
+    "",
+    "",
+    { formula: "F2", result: openingBalanceVal },
+  ];
+  rTotOpen.font = { name: "Segoe UI", size: 10, bold: true, color: THEME.navyDark };
+  rTotOpen.fill = fillSection;
+  rTotOpen.getCell(6).numFmt = currencyNumFmt;
+  rTotOpen.getCell(6).alignment = alignRight;
+  rTotOpen.height = 22;
+  for (let c = 1; c <= 6; c++) rTotOpen.getCell(c).border = borderThin;
+  wsTx.mergeCells(`A${txRow}:E${txRow}`);
+  const rTotOpenIdx = txRow;
+  txRow++;
+
+  // 2. Total Inflows
   const incTotalRow = wsTx.getRow(txRow);
   incTotalRow.values = [
-    "TOTAL INCOME RECORDED",
+    "TOTAL PERIOD INFLOWS (INCOME)",
     "",
     "",
     "",
     "",
-    txEndDataRow >= 2
-      ? { formula: `SUMIF(D2:D${txEndDataRow},"Income",F2:F${txEndDataRow})`, result: totalIncomeVal }
+    txEndDataRow >= 3
+      ? { formula: `SUMIF(D3:D${txEndDataRow},"Income",F3:F${txEndDataRow})`, result: totalIncomeVal }
       : totalIncomeVal,
   ];
   incTotalRow.font = fontTotal;
@@ -511,17 +617,19 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   incTotalRow.height = 24;
   for (let c = 1; c <= 6; c++) incTotalRow.getCell(c).border = borderTotal;
   wsTx.mergeCells(`A${txRow}:E${txRow}`);
+  const rTotIncIdx = txRow;
   txRow++;
 
+  // 3. Total Outflows
   const expTotalRow = wsTx.getRow(txRow);
   expTotalRow.values = [
-    "TOTAL EXPENSES RECORDED",
+    "TOTAL PERIOD OUTFLOWS (EXPENSES)",
     "",
     "",
     "",
     "",
-    txEndDataRow >= 2
-      ? { formula: `SUMIF(D2:D${txEndDataRow},"Expense",F2:F${txEndDataRow})`, result: totalExpenseVal }
+    txEndDataRow >= 3
+      ? { formula: `SUMIF(D3:D${txEndDataRow},"Expense",F3:F${txEndDataRow})`, result: totalExpenseVal }
       : totalExpenseVal,
   ];
   expTotalRow.font = fontTotal;
@@ -531,16 +639,18 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   expTotalRow.height = 24;
   for (let c = 1; c <= 6; c++) expTotalRow.getCell(c).border = borderTotal;
   wsTx.mergeCells(`A${txRow}:E${txRow}`);
+  const rTotExpIdx = txRow;
   txRow++;
 
+  // 4. Net Operating Cash Flow
   const netCashFlowRow = wsTx.getRow(txRow);
   netCashFlowRow.values = [
-    "NET OPERATING CASH FLOW",
+    "NET OPERATING CASH FLOW (INFLOWS – OUTFLOWS)",
     "",
     "",
     "",
     "",
-    { formula: `F${txRow - 2}-F${txRow - 1}`, result: netCashFlowVal },
+    { formula: `F${rTotIncIdx}-F${rTotExpIdx}`, result: netCashFlowVal },
   ];
   netCashFlowRow.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
   netCashFlowRow.fill = { type: "pattern", pattern: "solid", fgColor: THEME.navyDark };
@@ -549,14 +659,34 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   netCashFlowRow.height = 24;
   for (let c = 1; c <= 6; c++) netCashFlowRow.getCell(c).border = borderTotal;
   wsTx.mergeCells(`A${txRow}:E${txRow}`);
+  const rTotNetIdx = txRow;
+  txRow++;
+
+  // 5. Closing Monthly Balance
+  const closingBalanceRow = wsTx.getRow(txRow);
+  closingBalanceRow.values = [
+    "CLOSING MONTHLY CASH & BANK BALANCE (C/F)",
+    "",
+    "",
+    "",
+    "",
+    { formula: `F${rTotOpenIdx}+F${rTotNetIdx}`, result: closingBalanceVal },
+  ];
+  closingBalanceRow.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
+  closingBalanceRow.fill = { type: "pattern", pattern: "solid", fgColor: THEME.navyDark };
+  closingBalanceRow.getCell(6).numFmt = currencyNumFmt;
+  closingBalanceRow.getCell(6).alignment = alignRight;
+  closingBalanceRow.height = 28;
+  for (let c = 1; c <= 6; c++) closingBalanceRow.getCell(c).border = borderTotal;
+  wsTx.mergeCells(`A${txRow}:E${txRow}`);
 
   autoFit(wsTx, 14);
   wsTx.getColumn("A").width = 14;
-  wsTx.getColumn("B").width = 32;
+  wsTx.getColumn("B").width = 34;
   wsTx.getColumn("C").width = 20;
   wsTx.getColumn("D").width = 14;
-  wsTx.getColumn("E").width = 20;
-  wsTx.getColumn("F").width = 20;
+  wsTx.getColumn("E").width = 22;
+  wsTx.getColumn("F").width = 22;
 
   // ==========================================
   // SHEET 3: INCOME
@@ -1247,7 +1377,27 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   let nwRow = 6;
   const assetStartRow = nwRow;
 
-  // 1. Investment Portfolio summary row
+  // 1. Liquid Bank & Cash Balances (Closing Cash Position)
+  wsNw.getRow(nwRow).values = [
+    "Liquid Cash & Bank Accounts (Closing Cash Position)",
+    "Liquid Financial Assets",
+    "Current Balance (C/F)",
+    effectiveLiquidCashVal,
+  ];
+  wsNw.getRow(nwRow).getCell(1).alignment = alignLeft;
+  wsNw.getRow(nwRow).getCell(2).alignment = alignLeft;
+  wsNw.getRow(nwRow).getCell(3).alignment = alignLeft;
+  wsNw.getRow(nwRow).getCell(4).alignment = alignRight;
+  wsNw.getRow(nwRow).getCell(4).numFmt = currencyNumFmt;
+  for (let c = 1; c <= 4; c++) {
+    wsNw.getRow(nwRow).getCell(c).font = { name: "Segoe UI", size: 10, bold: true, color: THEME.navyDark };
+    wsNw.getRow(nwRow).getCell(c).fill = fillSection;
+    wsNw.getRow(nwRow).getCell(c).border = borderThin;
+  }
+  wsNw.getRow(nwRow).height = 20;
+  nwRow++;
+
+  // 2. Investment Portfolio summary row
   wsNw.getRow(nwRow).values = [
     "Marketable Securities & Investment Portfolio",
     "Liquid Financial Assets",
@@ -1267,8 +1417,8 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsNw.getRow(nwRow).height = 20;
   nwRow++;
 
-  // 2. Fixed & Personal Assets from data.assets
-  data.assets.forEach((a, idx) => {
+  // 3. Fixed & Tangible Assets from data.assets
+  tangibleAssets.forEach((a, idx) => {
     const r = wsNw.getRow(nwRow);
     r.values = [
       a.name,
@@ -1416,9 +1566,9 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   for (let c = 1; c <= 4; c++) wsNw.getRow(nwRow).getCell(c).border = borderTotal;
 
   autoFit(wsNw, 18);
-  wsNw.getColumn("A").width = 38;
+  wsNw.getColumn("A").width = 44;
   wsNw.getColumn("B").width = 28;
-  wsNw.getColumn("C").width = 22;
+  wsNw.getColumn("C").width = 24;
   wsNw.getColumn("D").width = 24;
 
   // ==========================================
