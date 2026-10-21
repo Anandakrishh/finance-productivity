@@ -143,14 +143,23 @@ export default function LoginScreen({ onBack }: LoginScreenProps) {
                 </p>
               </div>
 
-              <div className="rounded-2xl border border-white/15 bg-white/[0.05] p-4 text-left text-xs text-zinc-300 space-y-2">
-                <div className="flex items-start gap-2">
+              <div className="rounded-2xl border border-white/15 bg-white/[0.05] p-4 text-left text-xs text-zinc-300 space-y-3">
+                <div className="flex items-start gap-2.5">
                   <Sparkles size={15} className="mt-0.5 shrink-0 text-blue-400" />
-                  <span>If you were given credentials, use your assigned email and password on the login screen.</span>
+                  <span className="leading-relaxed">If you were given credentials, use your assigned email and password on the login screen.</span>
                 </div>
-                <div className="flex items-start gap-2">
-                  <ShieldCheck size={15} className="mt-0.5 shrink-0 text-emerald-400" />
-                  <span>Workspace administrators can provision new accounts from <strong>Settings → Provision New Account</strong>.</span>
+                <div className="flex items-start gap-2.5">
+                  <Mail size={15} className="mt-0.5 shrink-0 text-cyan-400" />
+                  <span className="leading-relaxed">
+                    Need help accessing your account? For assistance, contact{" "}
+                    <a
+                      href="mailto:ananda.krishh@gmail.com"
+                      className="text-blue-400 hover:text-blue-300 underline underline-offset-2 transition-colors font-medium"
+                    >
+                      ananda.krishh@gmail.com
+                    </a>
+                    .
+                  </span>
                 </div>
               </div>
 

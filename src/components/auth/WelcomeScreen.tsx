@@ -57,12 +57,7 @@ export default function WelcomeScreen({ onGetStarted }: WelcomeScreenProps) {
               <span className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full border-2 border-[#02050e] bg-blue-400" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-bold tracking-tight text-white">PULSE</span>
-                <span className="rounded-full border border-blue-500/30 bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-blue-300">
-                  Anand's
-                </span>
-              </div>
+              <span className="text-sm font-bold tracking-tight text-white">AK FINANCE</span>
               <p className="text-[11px] text-zinc-400">Productivity & Personal Finance</p>
             </div>
           </div>

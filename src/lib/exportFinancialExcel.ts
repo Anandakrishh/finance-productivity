@@ -4,6 +4,8 @@ import type { AppData } from "../context/AppDataContext";
 interface ExportOptions {
   currency?: string;
   userName?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export async function exportFinancialStatementExcel(data: AppData, options: ExportOptions = {}) {
@@ -19,8 +21,20 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     day: "numeric",
   });
 
+  const startDate = options.startDate;
+  const endDate = options.endDate;
+  const hasDateRange = Boolean(startDate && endDate);
+
+  // Filter transactions within the selected date range (inclusive)
+  const filteredTransactions = hasDateRange
+    ? data.transactions.filter((t) => {
+        const d = t.date ? t.date.slice(0, 10) : "";
+        return d >= startDate! && d <= endDate!;
+      })
+    : data.transactions;
+
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "PULSE Financial Intelligence";
+  workbook.creator = "AK Finance Intelligence";
   workbook.lastModifiedBy = userName;
   workbook.created = new Date();
   workbook.modified = new Date();
@@ -107,7 +121,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   // Title Banner
   summarySheet.mergeCells("A1:F1");
   const titleCell = summarySheet.getCell("A1");
-  titleCell.value = "PULSE FINANCIAL STATEMENT & EXECUTIVE SUMMARY";
+  titleCell.value = "AK FINANCE STATEMENT & EXECUTIVE SUMMARY";
   titleCell.font = { name: "Segoe UI", size: 16, bold: true, color: { argb: "FFFFFFFF" } };
   titleCell.fill = {
     type: "pattern",
@@ -120,34 +134,47 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   // Metadata block
   summarySheet.getCell("A2").value = "Generated For:";
   summarySheet.getCell("B2").value = userName;
-  summarySheet.getCell("D2").value = "Statement Date:";
-  summarySheet.getCell("E2").value = nowStr;
+  summarySheet.getCell("D2").value = hasDateRange ? "Statement Period:" : "Statement Date:";
+  summarySheet.getCell("E2").value = hasDateRange ? `${startDate} to ${endDate}` : nowStr;
 
   summarySheet.getCell("A3").value = "Reporting Currency:";
   summarySheet.getCell("B3").value = `${currency} (${currencySymbol})`;
-  summarySheet.getCell("D3").value = "Platform:";
-  summarySheet.getCell("E3").value = "PULSE Wealth Intelligence";
+  summarySheet.getCell("D3").value = "Exported On:";
+  summarySheet.getCell("E3").value = nowStr;
 
-  ["A2", "D2", "A3", "D3"].forEach((key) => {
+  summarySheet.getCell("A4").value = "Records Filtered:";
+  summarySheet.getCell("B4").value = hasDateRange ? `${filteredTransactions.length} transactions (${startDate} to ${endDate})` : `${filteredTransactions.length} transactions`;
+  summarySheet.getCell("D4").value = "Platform:";
+  summarySheet.getCell("E4").value = "AK Finance Intelligence";
+
+  ["A2", "D2", "A3", "D3", "A4", "D4"].forEach((key) => {
     summarySheet.getCell(key).font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FF71717A" } };
   });
-  ["B2", "E2", "B3", "E3"].forEach((key) => {
+  ["B2", "E2", "B3", "E3", "B4", "E4"].forEach((key) => {
     summarySheet.getCell(key).font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FF18181B" } };
   });
 
-  // Calculate live values
-  const totalIncome = data.transactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
-  const totalExpense = data.transactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
+  // Calculate live values for filtered transactions
+  const totalIncome = filteredTransactions.filter((t) => t.type === "income").reduce((s, t) => s + t.amount, 0);
+  const totalExpense = filteredTransactions.filter((t) => t.type === "expense").reduce((s, t) => s + t.amount, 0);
   const netSavings = totalIncome - totalExpense;
   const savingsRate = totalIncome > 0 ? netSavings / totalIncome : 0;
 
-  const totalInvested = data.investments.reduce((s, i) => s + i.invested, 0);
-  const totalPortfolioCurrent = data.investments.reduce((s, i) => s + i.current, 0);
+  const filteredInvestments = hasDateRange
+    ? data.investments.filter((i) => !i.date || i.date.slice(0, 10) <= endDate!)
+    : data.investments;
+
+  const totalInvested = filteredInvestments.reduce((s, i) => s + i.invested, 0);
+  const totalPortfolioCurrent = filteredInvestments.reduce((s, i) => s + i.current, 0);
   const totalInvestmentGain = totalPortfolioCurrent - totalInvested;
   const portfolioReturnPct = totalInvested > 0 ? totalInvestmentGain / totalInvested : 0;
 
-  const totalSavingsGoalTarget = data.savingsGoals.reduce((s, g) => s + g.target, 0);
-  const totalSavedInGoals = data.savingsGoals.reduce((s, g) => s + g.saved, 0);
+  const filteredGoals = hasDateRange
+    ? data.savingsGoals.filter((g) => !g.deadline || g.deadline.slice(0, 10) >= startDate!)
+    : data.savingsGoals;
+
+  const totalSavingsGoalTarget = filteredGoals.reduce((s, g) => s + g.target, 0);
+  const totalSavedInGoals = filteredGoals.reduce((s, g) => s + g.saved, 0);
 
   const totalMonthlyEmi = data.emis.reduce((s, e) => s + e.monthlyEmi, 0);
   const totalOutstandingDebt = data.emis.reduce((s, e) => {
@@ -158,39 +185,39 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   const estimatedLiquidNetWorth = netSavings + totalPortfolioCurrent - totalOutstandingDebt;
 
   // Key Financial Metrics Table
-  summarySheet.getCell("A5").value = "KEY FINANCIAL INDICATORS";
-  summarySheet.mergeCells("A5:E5");
-  summarySheet.getCell("A5").font = THEME.sectionFont;
-  summarySheet.getCell("A5").fill = THEME.sectionFill;
-  summarySheet.getRow(5).height = 24;
+  summarySheet.getCell("A6").value = hasDateRange ? `KEY FINANCIAL INDICATORS (${startDate} to ${endDate})` : "KEY FINANCIAL INDICATORS";
+  summarySheet.mergeCells("A6:E6");
+  summarySheet.getCell("A6").font = THEME.sectionFont;
+  summarySheet.getCell("A6").fill = THEME.sectionFill;
+  summarySheet.getRow(6).height = 24;
 
-  const kpis = [
-    ["Total Income Inflow", totalIncome, currencyNumFmt, "Total earnings & deposits"],
-    ["Total Expenses Outflow", totalExpense, currencyNumFmt, "Total living & discretionary spending"],
-    ["Net Operating Cash Flow", netSavings, currencyNumFmt, "Surplus capital (Income - Expenses)"],
-    ["Savings Rate", savingsRate, percentFmt, "Percentage of income retained"],
-    ["Investments Portfolio Value", totalPortfolioCurrent, currencyNumFmt, "Current market value of assets"],
+  const kpis: [string, number, string, string][] = [
+    [hasDateRange ? "Period Income Inflow" : "Total Income Inflow", totalIncome, currencyNumFmt, "Earnings & deposits in period"],
+    [hasDateRange ? "Period Expenses Outflow" : "Total Expenses Outflow", totalExpense, currencyNumFmt, "Living & discretionary spending in period"],
+    [hasDateRange ? "Period Net Operating Cash Flow" : "Net Operating Cash Flow", netSavings, currencyNumFmt, "Surplus capital (Income - Expenses)"],
+    ["Period Savings Rate", savingsRate, percentFmt, "Percentage of period income retained"],
+    ["Investments Portfolio Value", totalPortfolioCurrent, currencyNumFmt, "Current market value of assets as of period end"],
     ["Unrealized Investment Gain / Loss", totalInvestmentGain, currencyNumFmt, "Net returns on invested capital"],
     ["Overall Portfolio ROI", portfolioReturnPct, percentFmt, "Total percentage return on investments"],
-    ["Active Savings In Goals", totalSavedInGoals, currencyNumFmt, "Funds committed to specific targets"],
+    ["Active Savings In Goals", totalSavedInGoals, currencyNumFmt, "Funds committed to active targets"],
     ["Total Savings Target", totalSavingsGoalTarget, currencyNumFmt, "Cumulative milestone targets"],
     ["Monthly EMI Debt Obligation", totalMonthlyEmi, currencyNumFmt, "Monthly fixed debt installments"],
     ["Total Outstanding Debt Liability", totalOutstandingDebt, currencyNumFmt, "Remaining principal across all loans"],
-    ["Estimated Net Financial Position", estimatedLiquidNetWorth, currencyNumFmt, "Liquid savings + Portfolio - Liabilities"],
+    ["Estimated Net Financial Position", estimatedLiquidNetWorth, currencyNumFmt, "Period Cash Flow + Portfolio - Liabilities"],
   ];
 
-  summarySheet.getRow(6).values = ["Indicator", "Value", "Metric Type", "Description"];
-  summarySheet.getRow(6).font = THEME.headerFont;
-  summarySheet.getRow(6).fill = THEME.headerFill;
-  summarySheet.getRow(6).height = 24;
+  summarySheet.getRow(7).values = ["Indicator", "Value", "Metric Type", "Description"];
+  summarySheet.getRow(7).font = THEME.headerFont;
+  summarySheet.getRow(7).fill = THEME.headerFill;
+  summarySheet.getRow(7).height = 24;
 
-  let rIdx = 7;
+  let rIdx = 8;
   kpis.forEach(([label, val, fmt, desc]) => {
     const row = summarySheet.getRow(rIdx);
     row.values = [label, val, typeof val === "number" && fmt === percentFmt ? "Rate / %" : "Currency", desc];
     row.getCell(2).numFmt = fmt as string;
     row.getCell(2).font = { name: "Segoe UI", size: 10, bold: true };
-    if (label === "Estimated Net Financial Position") {
+    if (label.startsWith("Estimated Net Financial Position")) {
       row.fill = THEME.accentFill;
       row.font = THEME.accentFont;
       row.getCell(2).font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FF9A3412" } };
@@ -215,7 +242,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   incomeSheet.getRow(1).fill = THEME.headerFill;
   incomeSheet.getRow(1).height = 26;
 
-  const incomeTx = data.transactions.filter((t) => t.type === "income").sort((a, b) => b.date.localeCompare(a.date));
+  const incomeTx = filteredTransactions.filter((t) => t.type === "income").sort((a, b) => b.date.localeCompare(a.date));
   let incRowIdx = 2;
   incomeTx.forEach((t) => {
     const r = incomeSheet.getRow(incRowIdx);
@@ -246,7 +273,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   expenseSheet.getRow(1).fill = THEME.headerFill;
   expenseSheet.getRow(1).height = 26;
 
-  const expenseTx = data.transactions.filter((t) => t.type === "expense").sort((a, b) => b.date.localeCompare(a.date));
+  const expenseTx = filteredTransactions.filter((t) => t.type === "expense").sort((a, b) => b.date.localeCompare(a.date));
   let expRowIdx = 2;
   expenseTx.forEach((t) => {
     const r = expenseSheet.getRow(expRowIdx);
@@ -315,7 +342,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   savingsSheet.getRow(1).height = 26;
 
   let savRowIdx = 2;
-  data.savingsGoals.forEach((g) => {
+  filteredGoals.forEach((g) => {
     const r = savingsSheet.getRow(savRowIdx);
     const progress = g.target > 0 ? g.saved / g.target : 0;
     const remaining = Math.max(0, g.target - g.saved);
@@ -341,10 +368,10 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   const savTotalRow = savingsSheet.getRow(savRowIdx);
   savTotalRow.values = [
     "TOTAL SAVINGS COMMITTED",
-    data.savingsGoals.length > 0 ? { formula: `SUM(B2:B${savRowIdx - 1})`, result: totalSavingsGoalTarget } : 0,
-    data.savingsGoals.length > 0 ? { formula: `SUM(C2:C${savRowIdx - 1})`, result: totalSavedInGoals } : 0,
-    data.savingsGoals.length > 0 ? { formula: `C${savRowIdx}/B${savRowIdx}`, result: totalSavingsGoalTarget ? totalSavedInGoals / totalSavingsGoalTarget : 0 } : 0,
-    data.savingsGoals.length > 0 ? { formula: `SUM(E2:E${savRowIdx - 1})`, result: Math.max(0, totalSavingsGoalTarget - totalSavedInGoals) } : 0,
+    filteredGoals.length > 0 ? { formula: `SUM(B2:B${savRowIdx - 1})`, result: totalSavingsGoalTarget } : 0,
+    filteredGoals.length > 0 ? { formula: `SUM(C2:C${savRowIdx - 1})`, result: totalSavedInGoals } : 0,
+    filteredGoals.length > 0 ? { formula: `C${savRowIdx}/B${savRowIdx}`, result: totalSavingsGoalTarget ? totalSavedInGoals / totalSavingsGoalTarget : 0 } : 0,
+    filteredGoals.length > 0 ? { formula: `SUM(E2:E${savRowIdx - 1})`, result: Math.max(0, totalSavingsGoalTarget - totalSavedInGoals) } : 0,
     "-",
     totalSavedInGoals >= totalSavingsGoalTarget && totalSavingsGoalTarget > 0 ? "All Complete" : "In Progress",
   ];
@@ -379,7 +406,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   investSheet.getRow(1).height = 26;
 
   let invRowIdx = 2;
-  data.investments.forEach((i) => {
+  filteredInvestments.forEach((i) => {
     const r = investSheet.getRow(invRowIdx);
     const gain = i.current - i.invested;
     const roi = i.invested > 0 ? gain / i.invested : 0;
@@ -410,10 +437,10 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     "",
     "",
     "",
-    data.investments.length > 0 ? { formula: `SUM(E2:E${invRowIdx - 1})`, result: totalInvested } : 0,
-    data.investments.length > 0 ? { formula: `SUM(F2:F${invRowIdx - 1})`, result: totalPortfolioCurrent } : 0,
-    data.investments.length > 0 ? { formula: `SUM(G2:G${invRowIdx - 1})`, result: totalInvestmentGain } : 0,
-    data.investments.length > 0 ? { formula: `IF(E${invRowIdx}>0, G${invRowIdx}/E${invRowIdx}, 0)`, result: portfolioReturnPct } : 0,
+    filteredInvestments.length > 0 ? { formula: `SUM(E2:E${invRowIdx - 1})`, result: totalInvested } : 0,
+    filteredInvestments.length > 0 ? { formula: `SUM(F2:F${invRowIdx - 1})`, result: totalPortfolioCurrent } : 0,
+    filteredInvestments.length > 0 ? { formula: `SUM(G2:G${invRowIdx - 1})`, result: totalInvestmentGain } : 0,
+    filteredInvestments.length > 0 ? { formula: `IF(E${invRowIdx}>0, G${invRowIdx}/E${invRowIdx}, 0)`, result: portfolioReturnPct } : 0,
     "-",
   ];
   invTotalRow.font = THEME.totalFont;
@@ -513,7 +540,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   budgetSheet.getRow(1).values = [
     "Category / Envelope",
     "Monthly Limit",
-    "Actual Spent (Current Month)",
+    hasDateRange ? `Actual Spent (${startDate} to ${endDate})` : "Actual Spent (Current Month)",
     "Remaining Balance",
     "Utilization %",
     "Status",
@@ -527,8 +554,8 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   let totalBudgetSpent = 0;
 
   data.budgets.forEach((b) => {
-    const spent = data.transactions
-      .filter((t) => t.type === "expense" && t.category === b.name && t.date.startsWith(currentMonthKey))
+    const spent = (hasDateRange ? filteredTransactions : data.transactions)
+      .filter((t) => t.type === "expense" && t.category === b.name && (hasDateRange ? true : t.date.startsWith(currentMonthKey)))
       .reduce((s, t) => s + t.amount, 0);
     totalBudgetLimit += b.limit;
     totalBudgetSpent += spent;
@@ -578,7 +605,10 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `PULSE_Financial_Statement_${todayStr}.xlsx`;
+  const fileName = hasDateRange
+    ? `AK_Finance_Statement_${startDate}_to_${endDate}.xlsx`
+    : `AK_Finance_Statement_${todayStr}.xlsx`;
+  a.download = fileName;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

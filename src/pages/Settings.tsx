@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Moon, Sun, Monitor, Bell, Download, Upload, Trash2, RotateCcw, User, Shield, Database, Check, FileSpreadsheet, AlertTriangle, Eye, EyeOff, UserPlus, Copy, Sparkles } from "lucide-react";
+import { Moon, Sun, Monitor, Bell, Download, Upload, Trash2, RotateCcw, User, Shield, Database, Check, FileSpreadsheet, AlertTriangle, Eye, EyeOff, UserPlus, Copy, Sparkles, Calendar, AlertCircle } from "lucide-react";
 import { useAppData } from "../context/AppDataContext";
 import { useAuth } from "../context/AuthContext";
 import { Button, Field, Input, LiquidCard, Modal, Select, pageClass } from "../components/AppUI";
@@ -12,6 +12,35 @@ type DangerAction = "clear" | "reset" | null;
 
 const KEY="pulse-settings";
 const defaults:SettingsData={name:"Anand",currency:"INR",appearance:"dark",notifications:true,privacy:false,weekStarts:"Monday"};
+
+function formatDisplayDate(dateStr: string): string {
+  if (!dateStr) return "";
+  try {
+    const parts = dateStr.split("-").map(Number);
+    if (parts.length < 3 || isNaN(parts[0]) || isNaN(parts[1]) || isNaN(parts[2])) return dateStr;
+    const [y, m, d] = parts;
+    const date = new Date(Date.UTC(y, m - 1, d));
+    return date.toLocaleDateString("en-GB", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+      timeZone: "UTC",
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+function getInitialExportDates() {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return {
+    start: `${year}-${month}-01`,
+    end: `${year}-${month}-${day}`,
+  };
+}
 
 function load():SettingsData{try{return {...defaults,...JSON.parse(localStorage.getItem(KEY)||"{}")}}catch{return defaults}}
 
@@ -28,6 +57,10 @@ function Settings(){
    return { ...loaded, privacy: privacyMode };
  });
  const [saved,setSaved]=useState(false); const [exportingExcel,setExportingExcel]=useState(false); const {user,signOut}=useAuth();
+ const initialExportDates = getInitialExportDates();
+ const [exportStartDate, setExportStartDate] = useState(initialExportDates.start);
+ const [exportEndDate, setExportEndDate] = useState(initialExportDates.end);
+ const [exportDateError, setExportDateError] = useState<string | null>(null);
  const [dangerAction, setDangerAction] = useState<DangerAction>(null);
  const [dangerPassword, setDangerPassword] = useState("");
  const [showDangerPassword, setShowDangerPassword] = useState(false);
@@ -59,7 +92,46 @@ function Settings(){
  const save=()=>{localStorage.setItem(KEY,JSON.stringify(settings));applyAppearance(settings.appearance);setSaved(true);setTimeout(()=>setSaved(false),1800)};
  const exportData=()=>{const payload={appName:"Finance",version:"2.0",exportedAt:new Date().toISOString(),settings,data};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`finance-backup-${new Date().toISOString().slice(0,10)}.json`;a.click();URL.revokeObjectURL(a.href)};
  const importData=(file:File)=>{const r=new FileReader();r.onload=()=>{try{const p=JSON.parse(String(r.result));if(p.settings)localStorage.setItem(KEY,JSON.stringify({...defaults,...p.settings}));if(p.data)localStorage.setItem("pulse-app-data",JSON.stringify(p.data));alert("Backup imported. Reloading.");location.reload()}catch{alert("That backup file is not valid.")}};r.readAsText(file)};
- const handleExportExcel=async()=>{try{setExportingExcel(true);await exportFinancialStatementExcel(data,{currency:settings.currency,userName:settings.name});}catch(err){console.error("Excel export error:",err);alert("Failed to export Excel statement.");}finally{setExportingExcel(false);}};
+ const handleExportExcel = async () => {
+   setExportDateError(null);
+
+   if (!exportStartDate || !exportEndDate) {
+     setExportDateError("Both From Date and To Date are required before exporting.");
+     return;
+   }
+
+   if (exportStartDate > exportEndDate) {
+     setExportDateError("From Date cannot be later than To Date.");
+     return;
+   }
+
+   const matchingCount = data.transactions.filter((t) => {
+     const d = t.date ? t.date.slice(0, 10) : "";
+     return d >= exportStartDate && d <= exportEndDate;
+   }).length;
+
+   if (matchingCount === 0) {
+     setExportDateError(
+       `No financial records found between ${formatDisplayDate(exportStartDate)} and ${formatDisplayDate(exportEndDate)}. Please select a date range with records.`
+     );
+     return;
+   }
+
+   try {
+     setExportingExcel(true);
+     await exportFinancialStatementExcel(data, {
+       currency: settings.currency,
+       userName: settings.name,
+       startDate: exportStartDate,
+       endDate: exportEndDate,
+     });
+   } catch (err) {
+     console.error("Excel export error:", err);
+     setExportDateError("Failed to export Excel statement. Please try again.");
+   } finally {
+     setExportingExcel(false);
+   }
+ };
 
  const handleDangerConfirm = async () => {
    if (!dangerPassword) {
@@ -122,7 +194,7 @@ function Settings(){
 
  const copyCredentials = async () => {
    if (!createdAccount) return;
-   const text = `PULSE Workspace Login Credentials:\nURL: ${window.location.origin}\nEmail: ${createdAccount.email}\nPassword: ${createdAccount.password}\n\nPlease sign in at the URL above.`;
+   const text = `AK Finance Workspace Login Credentials:\nURL: ${window.location.origin}\nEmail: ${createdAccount.email}\nPassword: ${createdAccount.password}\n\nPlease sign in at the URL above.`;
    try {
      await navigator.clipboard.writeText(text);
      setCopied(true);
@@ -296,6 +368,64 @@ function Settings(){
               <p className="text-[10px] text-zinc-400">Multi-sheet Excel with Income, Expenses, Savings, Portfolio & EMIs</p>
             </div>
           </div>
+
+          {/* Custom Date Range Selector */}
+          <div className="my-3 space-y-2 rounded-xl border border-[#2563FF]/20 bg-[#070D18]/90 p-2.5">
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 text-[11px] font-semibold text-zinc-300">
+                <Calendar size={13} className="text-[#3B82F6]" />
+                Date Range
+              </span>
+              {exportStartDate && exportEndDate && exportStartDate <= exportEndDate && (
+                <span className="text-[10px] font-mono text-[#60A5FA]">
+                  {formatDisplayDate(exportStartDate)} – {formatDisplayDate(exportEndDate)}
+                </span>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <div>
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                  From Date
+                </label>
+                <input
+                  type="date"
+                  value={exportStartDate}
+                  max={exportEndDate || undefined}
+                  onChange={(e) => {
+                    setExportStartDate(e.target.value);
+                    setExportDateError(null);
+                  }}
+                  className="liquid-input h-8 w-full rounded-xl border border-white/[0.08] bg-[#111C30] px-2.5 py-1 text-xs text-zinc-100 transition focus:border-[#3B82F6] focus:outline-none"
+                  style={{ colorScheme: "dark" }}
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[10px] font-semibold uppercase tracking-wider text-zinc-400">
+                  To Date
+                </label>
+                <input
+                  type="date"
+                  value={exportEndDate}
+                  min={exportStartDate || undefined}
+                  onChange={(e) => {
+                    setExportEndDate(e.target.value);
+                    setExportDateError(null);
+                  }}
+                  className="liquid-input h-8 w-full rounded-xl border border-white/[0.08] bg-[#111C30] px-2.5 py-1 text-xs text-zinc-100 transition focus:border-[#3B82F6] focus:outline-none"
+                  style={{ colorScheme: "dark" }}
+                />
+              </div>
+            </div>
+
+            {exportDateError && (
+              <div className="flex items-start gap-1.5 rounded-lg border border-red-500/25 bg-red-500/10 p-2 text-xs text-red-300">
+                <AlertCircle size={14} className="mt-0.5 shrink-0 text-red-400" />
+                <span className="text-[11px] leading-tight">{exportDateError}</span>
+              </div>
+            )}
+          </div>
+
           <Button 
             className="w-full bg-gradient-to-r from-blue-600 to-cyan-500 text-white font-medium shadow-md shadow-blue-500/25 hover:brightness-110" 
             onClick={handleExportExcel}
