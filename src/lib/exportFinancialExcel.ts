@@ -77,16 +77,12 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   });
   const currentBankCashVal = bankCashAssets.reduce((s, a) => s + a.value, 0);
 
-  // Opening monthly balance:
-  // If user has bank/cash assets recorded, opening balance is base cash + prior net
-  // (or current cash minus this period's net flow). Otherwise prior accumulated net flow.
   let openingBalanceVal = 0;
   if (currentBankCashVal > 0) {
     openingBalanceVal = Math.max(0, currentBankCashVal - netCashFlowVal);
   } else if (priorNetCash !== 0) {
     openingBalanceVal = Math.max(0, priorNetCash);
   } else {
-    // If starting fresh or all-time, initial cash baseline
     openingBalanceVal = 0;
   }
 
@@ -176,7 +172,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
 
   const fontCardValue: Partial<ExcelJS.Font> = {
     name: "Segoe UI",
-    size: 13,
+    size: 14,
     bold: true,
     color: THEME.navyDark,
   };
@@ -192,6 +188,13 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     size: 10,
     bold: true,
     color: { argb: "FFFFFFFF" },
+  };
+
+  const fontMutedItalic: Partial<ExcelJS.Font> = {
+    name: "Segoe UI",
+    size: 9,
+    italic: true,
+    color: THEME.textMuted,
   };
 
   const fillTitle: ExcelJS.Fill = {
@@ -224,6 +227,12 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     fgColor: THEME.navySecondary,
   };
 
+  const fillWhite: ExcelJS.Fill = {
+    type: "pattern",
+    pattern: "solid",
+    fgColor: THEME.white,
+  };
+
   const borderThin: Partial<ExcelJS.Borders> = {
     top: { style: "thin", color: THEME.thinBorderColor },
     left: { style: "thin", color: THEME.thinBorderColor },
@@ -242,17 +251,23 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   const alignLeft: Partial<ExcelJS.Alignment> = { horizontal: "left", vertical: "middle" };
   const alignRight: Partial<ExcelJS.Alignment> = { horizontal: "right", vertical: "middle" };
 
-  const autoFit = (ws: ExcelJS.Worksheet, minWidth = 12) => {
-    ws.columns.forEach((col) => {
-      let maxLen = minWidth;
-      col.eachCell?.({ includeEmpty: true }, (cell) => {
-        const valStr = cell.value ? String(cell.value) : "";
-        if (valStr.length > maxLen) {
-          maxLen = Math.min(valStr.length + 3, 48);
-        }
-      });
-      col.width = maxLen;
-    });
+  // Helper to apply borders across a range of cells (ensuring clean borders on merged cells)
+  const applyRangeStyle = (
+    ws: ExcelJS.Worksheet,
+    startCol: number,
+    startRow: number,
+    endCol: number,
+    endRow: number,
+    border: Partial<ExcelJS.Borders> = borderThin,
+    fill?: ExcelJS.Fill
+  ) => {
+    for (let r = startRow; r <= endRow; r++) {
+      for (let c = startCol; c <= endCol; c++) {
+        const cell = ws.getRow(r).getCell(c);
+        if (border) cell.border = border;
+        if (fill) cell.fill = fill;
+      }
+    }
   };
 
   // ==========================================
@@ -269,6 +284,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   tCell.font = fontTitle;
   tCell.fill = fillTitle;
   tCell.alignment = alignCenter;
+  applyRangeStyle(wsOv, 1, 1, 6, 1, borderThin, fillTitle);
   wsOv.getRow(1).height = 40;
 
   // Metadata Block
@@ -300,8 +316,9 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsOv.getRow(2).height = 18;
   wsOv.getRow(3).height = 18;
   wsOv.getRow(4).height = 18;
+  wsOv.getRow(5).height = 12; // Visual spacer
 
-  // KPI Summary Cards
+  // KPI Summary Cards Helper
   const renderCard = (
     rStart: number,
     cStart: number,
@@ -326,33 +343,35 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     // Value cell
     wsOv.mergeCells(`${colStartLetter}${rStart + 1}:${colEndLetter}${rEnd}`);
     const vCell = wsOv.getCell(`${colStartLetter}${rStart + 1}`);
-    if (typeof val === "object" && val !== null) {
-      vCell.value = val;
-    } else {
-      vCell.value = val;
-    }
+    vCell.value = val;
     vCell.font = fontCardValue;
-    vCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.white };
+    vCell.fill = fillWhite;
     vCell.alignment = alignCenter;
     if (isCurrency) vCell.numFmt = currencyIntFmt;
     if (isPercent) vCell.numFmt = percentFmt;
 
-    for (let r = rStart; r <= rEnd; r++) {
-      for (let c = cStart; c <= cEnd; c++) {
-        wsOv.getRow(r).getCell(c).border = borderThin;
-      }
-    }
+    applyRangeStyle(wsOv, cStart, rStart, cEnd, rEnd, borderThin);
   };
 
   // Row 6..8: 3 Cards for Monthly Cash Reconciliation
   renderCard(6, 1, 8, 2, "Opening Monthly Balance", openingBalanceVal);
-  renderCard(6, 3, 8, 4, "Total Period Income (+)", totalIncomeVal);
-  renderCard(6, 5, 8, 6, "Closing Monthly Balance", closingBalanceVal);
+  renderCard(6, 3, 8, 4, "Total Period Income (+)", { formula: "'Transactions'!F4", result: totalIncomeVal });
+  renderCard(6, 5, 8, 6, "Closing Monthly Balance", { formula: "'Transactions'!F7", result: closingBalanceVal });
+
+  wsOv.getRow(6).height = 18;
+  wsOv.getRow(7).height = 20;
+  wsOv.getRow(8).height = 20;
+  wsOv.getRow(9).height = 10; // Visual spacer
 
   // Row 10..12: 3 Cards for Operating Cash Flow & Wealth
-  renderCard(10, 1, 12, 2, "Total Period Expenses (-)", totalExpenseVal);
-  renderCard(10, 3, 12, 4, "Net Operating Cash Flow", netCashFlowVal);
-  renderCard(10, 5, 12, 6, "Consolidated Net Worth", netWorthVal);
+  renderCard(10, 1, 12, 2, "Total Period Expenses (-)", { formula: "'Transactions'!F5", result: totalExpenseVal });
+  renderCard(10, 3, 12, 4, "Net Operating Cash Flow", { formula: "'Transactions'!F6", result: netCashFlowVal });
+  renderCard(10, 5, 12, 6, "Consolidated Net Worth", { formula: "'Net Worth Statement'!D" + (tangibleAssets.length + data.liabilities.length + 13), result: netWorthVal });
+
+  wsOv.getRow(10).height = 18;
+  wsOv.getRow(11).height = 20;
+  wsOv.getRow(12).height = 20;
+  wsOv.getRow(13).height = 12; // Visual spacer
 
   // Section Header: Executive Financial Breakdown & Cash Flow
   wsOv.mergeCells("A14:F14");
@@ -361,6 +380,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   s14.font = fontSection;
   s14.fill = fillSection;
   s14.alignment = alignLeft;
+  applyRangeStyle(wsOv, 1, 14, 6, 14, borderThin, fillSection);
   wsOv.getRow(14).height = 24;
 
   const summaryMetrics = [
@@ -396,16 +416,12 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     wsOv.mergeCells(`E${curRow}:F${curRow}`);
     const cellN = wsOv.getCell(`E${curRow}`);
     cellN.value = m.note;
-    cellN.font = { name: "Segoe UI", size: 9, italic: true, color: THEME.textMuted };
+    cellN.font = fontMutedItalic;
     cellN.alignment = alignLeft;
 
-    const rowFill = idx % 2 === 0 ? fillZebra : { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white };
-    for (let c = 1; c <= 6; c++) {
-      const cell = wsOv.getRow(curRow).getCell(c);
-      cell.fill = rowFill;
-      cell.border = borderThin;
-    }
-    wsOv.getRow(curRow).height = 20;
+    const rowFill = idx % 2 === 0 ? fillZebra : fillWhite;
+    applyRangeStyle(wsOv, 1, curRow, 6, curRow, borderThin, rowFill);
+    wsOv.getRow(curRow).height = 22;
     curRow++;
   });
 
@@ -417,6 +433,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   sExp.font = fontSection;
   sExp.fill = fillSection;
   sExp.alignment = alignLeft;
+  applyRangeStyle(wsOv, 1, curRow, 6, curRow, borderThin, fillSection);
   wsOv.getRow(curRow).height = 24;
   curRow++;
 
@@ -432,8 +449,8 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     wsOv.getCell(pos).fill = fillHeader;
     wsOv.getCell(pos).alignment = pos.startsWith("D") ? alignRight : alignLeft;
   });
-  for (let c = 1; c <= 6; c++) wsOv.getRow(curRow).getCell(c).border = borderThin;
-  wsOv.getRow(curRow).height = 22;
+  applyRangeStyle(wsOv, 1, curRow, 6, curRow, borderThin, fillHeader);
+  wsOv.getRow(curRow).height = 24;
   curRow++;
 
   // Aggregate expenses by category
@@ -448,9 +465,9 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     wsOv.mergeCells(`A${curRow}:F${curRow}`);
     const noExp = wsOv.getCell(`A${curRow}`);
     noExp.value = "No expense transactions recorded in this period.";
-    noExp.font = { name: "Segoe UI", size: 10, italic: true, color: THEME.textMuted };
+    noExp.font = fontMutedItalic;
     noExp.alignment = alignCenter;
-    for (let c = 1; c <= 6; c++) wsOv.getRow(curRow).getCell(c).border = borderThin;
+    applyRangeStyle(wsOv, 1, curRow, 6, curRow, borderThin, fillWhite);
     wsOv.getRow(curRow).height = 22;
     curRow++;
   } else {
@@ -473,13 +490,9 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
       cellPct.font = fontRegular;
       cellPct.alignment = alignRight;
 
-      const rowFill = cIdx % 2 === 0 ? fillZebra : { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white };
-      for (let c = 1; c <= 6; c++) {
-        const cell = wsOv.getRow(curRow).getCell(c);
-        cell.fill = rowFill;
-        cell.border = borderThin;
-      }
-      wsOv.getRow(curRow).height = 20;
+      const rowFill = cIdx % 2 === 0 ? fillZebra : fillWhite;
+      applyRangeStyle(wsOv, 1, curRow, 6, curRow, borderThin, rowFill);
+      wsOv.getRow(curRow).height = 22;
       curRow++;
     });
   }
@@ -506,8 +519,9 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsTx.getRow(1).height = 26;
   wsTx.getRow(1).alignment = alignLeft;
   wsTx.getRow(1).getCell(1).alignment = alignCenter;
+  wsTx.getRow(1).getCell(4).alignment = alignCenter;
   wsTx.getRow(1).getCell(6).alignment = alignRight;
-  for (let c = 1; c <= 6; c++) wsTx.getRow(1).getCell(c).border = borderThin;
+  applyRangeStyle(wsTx, 1, 1, 6, 1, borderThin, fillHeader);
 
   // Row 2: OPENING MONTHLY BALANCE ROW
   const rOpenRow = wsTx.getRow(2);
@@ -534,46 +548,59 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     cell.fill = fillSection;
     cell.border = borderThin;
   }
-  rOpenRow.height = 22;
+  rOpenRow.height = 24;
 
   let txRow = 3;
-  allTx.forEach((t, idx) => {
-    const r = wsTx.getRow(txRow);
-    r.values = [
-      t.date ? t.date.slice(0, 10) : "",
-      t.description || t.title || "—",
-      t.category || "General",
-      t.type === "income" ? "Income" : "Expense",
-      t.account || "Main Account",
-      t.amount,
-    ];
-
-    r.getCell(1).alignment = alignCenter;
-    r.getCell(1).numFmt = "YYYY-MM-DD";
-    r.getCell(2).alignment = alignLeft;
-    r.getCell(3).alignment = alignLeft;
-    r.getCell(4).alignment = alignCenter;
-    r.getCell(5).alignment = alignLeft;
-    r.getCell(6).alignment = alignRight;
-    r.getCell(6).numFmt = currencyNumFmt;
-
-    // Type validation
-    r.getCell(4).dataValidation = {
-      type: "list",
-      allowBlank: true,
-      formulae: ['"Income,Expense"'],
-    };
-
-    const rowFill = idx % 2 === 0 ? fillZebra : { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white };
-    for (let c = 1; c <= 6; c++) {
-      const cell = r.getCell(c);
-      cell.font = fontRegular;
-      cell.fill = rowFill;
-      cell.border = borderThin;
-    }
-    r.height = 20;
+  if (allTx.length === 0) {
+    const rEmpty = wsTx.getRow(txRow);
+    rEmpty.values = ["—", "No transactions recorded in this period", "—", "—", "—", 0];
+    rEmpty.getCell(1).alignment = alignCenter;
+    rEmpty.getCell(2).alignment = alignLeft;
+    rEmpty.getCell(2).font = fontMutedItalic;
+    rEmpty.getCell(6).alignment = alignRight;
+    rEmpty.getCell(6).numFmt = currencyNumFmt;
+    applyRangeStyle(wsTx, 1, txRow, 6, txRow, borderThin, fillWhite);
+    rEmpty.height = 22;
     txRow++;
-  });
+  } else {
+    allTx.forEach((t, idx) => {
+      const r = wsTx.getRow(txRow);
+      r.values = [
+        t.date ? t.date.slice(0, 10) : "",
+        t.description || t.title || "—",
+        t.category || "General",
+        t.type === "income" ? "Income" : "Expense",
+        t.account || "Main Account",
+        t.amount,
+      ];
+
+      r.getCell(1).alignment = alignCenter;
+      r.getCell(1).numFmt = "YYYY-MM-DD";
+      r.getCell(2).alignment = alignLeft;
+      r.getCell(3).alignment = alignLeft;
+      r.getCell(4).alignment = alignCenter;
+      r.getCell(5).alignment = alignLeft;
+      r.getCell(6).alignment = alignRight;
+      r.getCell(6).numFmt = currencyNumFmt;
+
+      // Type validation
+      r.getCell(4).dataValidation = {
+        type: "list",
+        allowBlank: true,
+        formulae: ['"Income,Expense"'],
+      };
+
+      const rowFill = idx % 2 === 0 ? fillZebra : fillWhite;
+      for (let c = 1; c <= 6; c++) {
+        const cell = r.getCell(c);
+        cell.font = fontRegular;
+        cell.fill = rowFill;
+        cell.border = borderThin;
+      }
+      r.height = 22;
+      txRow++;
+    });
+  }
 
   // Total summary rows on Transactions sheet
   const txEndDataRow = txRow - 1;
@@ -592,9 +619,10 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   rTotOpen.fill = fillSection;
   rTotOpen.getCell(6).numFmt = currencyNumFmt;
   rTotOpen.getCell(6).alignment = alignRight;
-  rTotOpen.height = 22;
-  for (let c = 1; c <= 6; c++) rTotOpen.getCell(c).border = borderThin;
+  rTotOpen.height = 24;
+  applyRangeStyle(wsTx, 1, txRow, 6, txRow, borderThin, fillSection);
   wsTx.mergeCells(`A${txRow}:E${txRow}`);
+  wsTx.getCell(`A${txRow}`).alignment = alignLeft;
   const rTotOpenIdx = txRow;
   txRow++;
 
@@ -606,17 +634,18 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     "",
     "",
     "",
-    txEndDataRow >= 3
+    allTx.length > 0
       ? { formula: `SUMIF(D3:D${txEndDataRow},"Income",F3:F${txEndDataRow})`, result: totalIncomeVal }
-      : totalIncomeVal,
+      : 0,
   ];
   incTotalRow.font = fontTotal;
   incTotalRow.fill = fillTotal;
   incTotalRow.getCell(6).numFmt = currencyNumFmt;
   incTotalRow.getCell(6).alignment = alignRight;
   incTotalRow.height = 24;
-  for (let c = 1; c <= 6; c++) incTotalRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsTx, 1, txRow, 6, txRow, borderTotal, fillTotal);
   wsTx.mergeCells(`A${txRow}:E${txRow}`);
+  wsTx.getCell(`A${txRow}`).alignment = alignLeft;
   const rTotIncIdx = txRow;
   txRow++;
 
@@ -628,17 +657,18 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     "",
     "",
     "",
-    txEndDataRow >= 3
+    allTx.length > 0
       ? { formula: `SUMIF(D3:D${txEndDataRow},"Expense",F3:F${txEndDataRow})`, result: totalExpenseVal }
-      : totalExpenseVal,
+      : 0,
   ];
   expTotalRow.font = fontTotal;
   expTotalRow.fill = fillTotal;
   expTotalRow.getCell(6).numFmt = currencyNumFmt;
   expTotalRow.getCell(6).alignment = alignRight;
   expTotalRow.height = 24;
-  for (let c = 1; c <= 6; c++) expTotalRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsTx, 1, txRow, 6, txRow, borderTotal, fillTotal);
   wsTx.mergeCells(`A${txRow}:E${txRow}`);
+  wsTx.getCell(`A${txRow}`).alignment = alignLeft;
   const rTotExpIdx = txRow;
   txRow++;
 
@@ -653,12 +683,13 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     { formula: `F${rTotIncIdx}-F${rTotExpIdx}`, result: netCashFlowVal },
   ];
   netCashFlowRow.font = { name: "Segoe UI", size: 10, bold: true, color: { argb: "FFFFFFFF" } };
-  netCashFlowRow.fill = { type: "pattern", pattern: "solid", fgColor: THEME.navyDark };
+  netCashFlowRow.fill = fillTitle;
   netCashFlowRow.getCell(6).numFmt = currencyNumFmt;
   netCashFlowRow.getCell(6).alignment = alignRight;
   netCashFlowRow.height = 24;
-  for (let c = 1; c <= 6; c++) netCashFlowRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsTx, 1, txRow, 6, txRow, borderTotal, fillTitle);
   wsTx.mergeCells(`A${txRow}:E${txRow}`);
+  wsTx.getCell(`A${txRow}`).alignment = alignLeft;
   const rTotNetIdx = txRow;
   txRow++;
 
@@ -673,17 +704,17 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     { formula: `F${rTotOpenIdx}+F${rTotNetIdx}`, result: closingBalanceVal },
   ];
   closingBalanceRow.font = { name: "Segoe UI", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
-  closingBalanceRow.fill = { type: "pattern", pattern: "solid", fgColor: THEME.navyDark };
+  closingBalanceRow.fill = fillTitle;
   closingBalanceRow.getCell(6).numFmt = currencyNumFmt;
   closingBalanceRow.getCell(6).alignment = alignRight;
   closingBalanceRow.height = 28;
-  for (let c = 1; c <= 6; c++) closingBalanceRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsTx, 1, txRow, 6, txRow, borderTotal, fillTitle);
   wsTx.mergeCells(`A${txRow}:E${txRow}`);
+  wsTx.getCell(`A${txRow}`).alignment = alignLeft;
 
-  autoFit(wsTx, 14);
   wsTx.getColumn("A").width = 14;
-  wsTx.getColumn("B").width = 34;
-  wsTx.getColumn("C").width = 20;
+  wsTx.getColumn("B").width = 36;
+  wsTx.getColumn("C").width = 22;
   wsTx.getColumn("D").width = 14;
   wsTx.getColumn("E").width = 22;
   wsTx.getColumn("F").width = 22;
@@ -702,59 +733,72 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsInc.getRow(1).alignment = alignLeft;
   wsInc.getRow(1).getCell(1).alignment = alignCenter;
   wsInc.getRow(1).getCell(5).alignment = alignRight;
-  for (let c = 1; c <= 5; c++) wsInc.getRow(1).getCell(c).border = borderThin;
+  applyRangeStyle(wsInc, 1, 1, 5, 1, borderThin, fillHeader);
 
   let incRow = 2;
-  incomeTx.forEach((t, idx) => {
+  if (incomeTx.length === 0) {
     const r = wsInc.getRow(incRow);
-    r.values = [
-      t.date ? t.date.slice(0, 10) : "",
-      t.description || t.title || "Income",
-      t.category || "Salary",
-      t.account || "Checking",
-      t.amount,
-    ];
+    r.values = ["—", "No income transactions recorded in this period", "—", "—", 0];
     r.getCell(1).alignment = alignCenter;
-    r.getCell(1).numFmt = "YYYY-MM-DD";
     r.getCell(2).alignment = alignLeft;
-    r.getCell(3).alignment = alignLeft;
-    r.getCell(4).alignment = alignLeft;
+    r.getCell(2).font = fontMutedItalic;
     r.getCell(5).alignment = alignRight;
     r.getCell(5).numFmt = currencyNumFmt;
-
-    const rowFill = idx % 2 === 0 ? fillZebra : { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white };
-    for (let c = 1; c <= 5; c++) {
-      const cell = r.getCell(c);
-      cell.font = fontRegular;
-      cell.fill = rowFill;
-      cell.border = borderThin;
-    }
-    r.height = 20;
+    applyRangeStyle(wsInc, 1, incRow, 5, incRow, borderThin, fillWhite);
+    r.height = 22;
     incRow++;
-  });
+  } else {
+    incomeTx.forEach((t, idx) => {
+      const r = wsInc.getRow(incRow);
+      r.values = [
+        t.date ? t.date.slice(0, 10) : "",
+        t.description || t.title || "Income",
+        t.category || "Salary",
+        t.account || "Checking",
+        t.amount,
+      ];
+      r.getCell(1).alignment = alignCenter;
+      r.getCell(1).numFmt = "YYYY-MM-DD";
+      r.getCell(2).alignment = alignLeft;
+      r.getCell(3).alignment = alignLeft;
+      r.getCell(4).alignment = alignLeft;
+      r.getCell(5).alignment = alignRight;
+      r.getCell(5).numFmt = currencyNumFmt;
+
+      const rowFill = idx % 2 === 0 ? fillZebra : fillWhite;
+      for (let c = 1; c <= 5; c++) {
+        const cell = r.getCell(c);
+        cell.font = fontRegular;
+        cell.fill = rowFill;
+        cell.border = borderThin;
+      }
+      r.height = 22;
+      incRow++;
+    });
+  }
 
   const incTotRow = wsInc.getRow(incRow);
   incTotRow.values = [
-    "TOTAL INCOME",
+    "TOTAL INCOME RECORDED",
     "",
     "",
     "",
-    incRow > 2 ? { formula: `SUM(E2:E${incRow - 1})`, result: totalIncomeVal } : 0,
+    incomeTx.length > 0 ? { formula: `SUM(E2:E${incRow - 1})`, result: totalIncomeVal } : 0,
   ];
   incTotRow.font = fontTotal;
   incTotRow.fill = fillTotal;
   incTotRow.getCell(5).numFmt = currencyNumFmt;
   incTotRow.getCell(5).alignment = alignRight;
   incTotRow.height = 24;
-  for (let c = 1; c <= 5; c++) incTotRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsInc, 1, incRow, 5, incRow, borderTotal, fillTotal);
   wsInc.mergeCells(`A${incRow}:D${incRow}`);
+  wsInc.getCell(`A${incRow}`).alignment = alignLeft;
 
-  autoFit(wsInc, 14);
   wsInc.getColumn("A").width = 14;
-  wsInc.getColumn("B").width = 32;
-  wsInc.getColumn("C").width = 20;
-  wsInc.getColumn("D").width = 20;
-  wsInc.getColumn("E").width = 20;
+  wsInc.getColumn("B").width = 34;
+  wsInc.getColumn("C").width = 22;
+  wsInc.getColumn("D").width = 22;
+  wsInc.getColumn("E").width = 22;
 
   // ==========================================
   // SHEET 4: EXPENSES
@@ -770,59 +814,73 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsExp.getRow(1).alignment = alignLeft;
   wsExp.getRow(1).getCell(1).alignment = alignCenter;
   wsExp.getRow(1).getCell(5).alignment = alignRight;
-  for (let c = 1; c <= 5; c++) wsExp.getRow(1).getCell(c).border = borderThin;
+  applyRangeStyle(wsExp, 1, 1, 5, 1, borderThin, fillHeader);
 
   let expRow = 2;
-  expenseTx.forEach((t, idx) => {
+  if (expenseTx.length === 0) {
     const r = wsExp.getRow(expRow);
-    r.values = [
-      t.date ? t.date.slice(0, 10) : "",
-      t.description || t.title || "Expense",
-      t.category || "General",
-      t.account || "Main Account",
-      t.amount,
-    ];
+    r.values = ["—", "No expense transactions recorded in this period", "—", "—", 0];
     r.getCell(1).alignment = alignCenter;
-    r.getCell(1).numFmt = "YYYY-MM-DD";
     r.getCell(2).alignment = alignLeft;
-    r.getCell(3).alignment = alignLeft;
-    r.getCell(4).alignment = alignLeft;
+    r.getCell(2).font = fontMutedItalic;
     r.getCell(5).alignment = alignRight;
     r.getCell(5).numFmt = currencyNumFmt;
-
-    const rowFill = idx % 2 === 0 ? fillZebra : { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white };
-    for (let c = 1; c <= 5; c++) {
-      const cell = r.getCell(c);
-      cell.font = fontRegular;
-      cell.fill = rowFill;
-      cell.border = borderThin;
-    }
-    r.height = 20;
+    applyRangeStyle(wsExp, 1, expRow, 5, expRow, borderThin, fillWhite);
+    r.height = 22;
     expRow++;
-  });
+  } else {
+    expenseTx.forEach((t, idx) => {
+      const r = wsExp.getRow(expRow);
+      r.values = [
+        t.date ? t.date.slice(0, 10) : "",
+        t.description || t.title || "Expense",
+        t.category || "General",
+        t.account || "Main Account",
+        t.amount,
+      ];
+      r.getCell(1).alignment = alignCenter;
+      r.getCell(1).numFmt = "YYYY-MM-DD";
+      r.getCell(2).alignment = alignLeft;
+      r.getCell(3).alignment = alignLeft;
+      r.getCell(4).alignment = alignLeft;
+      r.getCell(5).alignment = alignRight;
+      r.getCell(5).numFmt = currencyNumFmt;
+
+      const rowFill = idx % 2 === 0 ? fillZebra : fillWhite;
+      for (let c = 1; c <= 5; c++) {
+        const cell = r.getCell(c);
+        cell.font = fontRegular;
+        cell.fill = rowFill;
+        cell.border = borderThin;
+      }
+      r.height = 22;
+      expRow++;
+    });
+  }
 
   const expTotRow = wsExp.getRow(expRow);
+  const expEndDataRow = expRow - 1;
   expTotRow.values = [
-    "TOTAL EXPENSES",
+    "TOTAL EXPENSES RECORDED",
     "",
     "",
     "",
-    expRow > 2 ? { formula: `SUM(E2:E${expRow - 1})`, result: totalExpenseVal } : 0,
+    expenseTx.length > 0 ? { formula: `SUM(E2:E${expEndDataRow})`, result: totalExpenseVal } : 0,
   ];
   expTotRow.font = fontTotal;
   expTotRow.fill = fillTotal;
   expTotRow.getCell(5).numFmt = currencyNumFmt;
   expTotRow.getCell(5).alignment = alignRight;
   expTotRow.height = 24;
-  for (let c = 1; c <= 5; c++) expTotRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsExp, 1, expRow, 5, expRow, borderTotal, fillTotal);
   wsExp.mergeCells(`A${expRow}:D${expRow}`);
+  wsExp.getCell(`A${expRow}`).alignment = alignLeft;
 
-  autoFit(wsExp, 14);
   wsExp.getColumn("A").width = 14;
-  wsExp.getColumn("B").width = 32;
-  wsExp.getColumn("C").width = 20;
-  wsExp.getColumn("D").width = 20;
-  wsExp.getColumn("E").width = 20;
+  wsExp.getColumn("B").width = 34;
+  wsExp.getColumn("C").width = 22;
+  wsExp.getColumn("D").width = 22;
+  wsExp.getColumn("E").width = 22;
 
   // ==========================================
   // SHEET 5: MONTHLY BUDGET ENVELOPES
@@ -848,77 +906,92 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsBg.getRow(1).getCell(4).alignment = alignRight;
   wsBg.getRow(1).getCell(5).alignment = alignRight;
   wsBg.getRow(1).getCell(6).alignment = alignCenter;
-  for (let c = 1; c <= 6; c++) wsBg.getRow(1).getCell(c).border = borderThin;
+  applyRangeStyle(wsBg, 1, 1, 6, 1, borderThin, fillHeader);
 
   let bgRow = 2;
   let totalBgLimit = 0;
   let totalBgSpent = 0;
 
-  data.budgets.forEach((b, idx) => {
-    const spent = expenseTx
-      .filter((t) => (t.category || "").toLowerCase() === (b.name || "").toLowerCase())
-      .reduce((s, t) => s + t.amount, 0);
-
-    totalBgLimit += b.limit;
-    totalBgSpent += spent;
-    const remaining = b.limit - spent;
-    const util = b.limit > 0 ? spent / b.limit : 0;
-
+  if (data.budgets.length === 0) {
     const r = wsBg.getRow(bgRow);
-    r.values = [
-      b.name,
-      b.limit,
-      { formula: `SUMIFS(Expenses!$E$2:$E$1000, Expenses!$C$2:$C$1000, A${bgRow})`, result: spent },
-      { formula: `B${bgRow}-C${bgRow}`, result: remaining },
-      { formula: `IF(B${bgRow}>0, C${bgRow}/B${bgRow}, 0)`, result: util },
-      spent > b.limit ? "OVER BUDGET" : util >= 0.85 ? "Near Limit" : "On Track",
-    ];
-
+    r.values = ["No budget envelopes configured", 0, 0, 0, 0, "—"];
     r.getCell(1).alignment = alignLeft;
-    r.getCell(2).alignment = alignRight;
+    r.getCell(1).font = fontMutedItalic;
     r.getCell(2).numFmt = currencyNumFmt;
-    r.getCell(3).alignment = alignRight;
     r.getCell(3).numFmt = currencyNumFmt;
-    r.getCell(4).alignment = alignRight;
     r.getCell(4).numFmt = currencyNumFmt;
-    r.getCell(5).alignment = alignRight;
     r.getCell(5).numFmt = percentFmt;
     r.getCell(6).alignment = alignCenter;
-
-    // Status pill coloring
-    const statusCell = r.getCell(6);
-    if (spent > b.limit) {
-      statusCell.font = { name: "Segoe UI", size: 9, bold: true, color: THEME.textRed };
-      statusCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.bgRed };
-    } else if (util >= 0.85) {
-      statusCell.font = { name: "Segoe UI", size: 9, bold: true, color: THEME.textAmber };
-      statusCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.bgAmber };
-    } else {
-      statusCell.font = { name: "Segoe UI", size: 9, bold: true, color: THEME.textGreen };
-      statusCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.bgGreen };
-    }
-
-    const rowFill = idx % 2 === 0 ? fillZebra : { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white };
-    for (let c = 1; c <= 5; c++) {
-      const cell = r.getCell(c);
-      cell.font = fontRegular;
-      cell.fill = rowFill;
-      cell.border = borderThin;
-    }
-    statusCell.border = borderThin;
-    r.height = 20;
+    applyRangeStyle(wsBg, 1, bgRow, 6, bgRow, borderThin, fillWhite);
+    r.height = 22;
     bgRow++;
-  });
+  } else {
+    data.budgets.forEach((b, idx) => {
+      const spent = expenseTx
+        .filter((t) => (t.category || "").toLowerCase() === (b.name || "").toLowerCase())
+        .reduce((s, t) => s + t.amount, 0);
+
+      totalBgLimit += b.limit;
+      totalBgSpent += spent;
+      const remaining = b.limit - spent;
+      const util = b.limit > 0 ? spent / b.limit : 0;
+
+      const r = wsBg.getRow(bgRow);
+      r.values = [
+        b.name,
+        b.limit,
+        { formula: `SUMIFS(Expenses!$E$2:$E$${expEndDataRow}, Expenses!$C$2:$C$${expEndDataRow}, A${bgRow})`, result: spent },
+        { formula: `B${bgRow}-C${bgRow}`, result: remaining },
+        { formula: `IF(B${bgRow}>0, C${bgRow}/B${bgRow}, 0)`, result: util },
+        { formula: `IF(C${bgRow}>B${bgRow}, "OVER BUDGET", IF(B${bgRow}>0, IF(C${bgRow}/B${bgRow}>=0.85, "Near Limit", "On Track"), "On Track"))`, result: spent > b.limit ? "OVER BUDGET" : util >= 0.85 ? "Near Limit" : "On Track" },
+      ];
+
+      r.getCell(1).alignment = alignLeft;
+      r.getCell(2).alignment = alignRight;
+      r.getCell(2).numFmt = currencyNumFmt;
+      r.getCell(3).alignment = alignRight;
+      r.getCell(3).numFmt = currencyNumFmt;
+      r.getCell(4).alignment = alignRight;
+      r.getCell(4).numFmt = currencyNumFmt;
+      r.getCell(5).alignment = alignRight;
+      r.getCell(5).numFmt = percentFmt;
+      r.getCell(6).alignment = alignCenter;
+
+      // Status pill coloring
+      const statusCell = r.getCell(6);
+      if (spent > b.limit) {
+        statusCell.font = { name: "Segoe UI", size: 9, bold: true, color: THEME.textRed };
+        statusCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.bgRed };
+      } else if (util >= 0.85) {
+        statusCell.font = { name: "Segoe UI", size: 9, bold: true, color: THEME.textAmber };
+        statusCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.bgAmber };
+      } else {
+        statusCell.font = { name: "Segoe UI", size: 9, bold: true, color: THEME.textGreen };
+        statusCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.bgGreen };
+      }
+
+      const rowFill = idx % 2 === 0 ? fillZebra : fillWhite;
+      for (let c = 1; c <= 5; c++) {
+        const cell = r.getCell(c);
+        cell.font = fontRegular;
+        cell.fill = rowFill;
+        cell.border = borderThin;
+      }
+      statusCell.border = borderThin;
+      r.height = 22;
+      bgRow++;
+    });
+  }
 
   // Total Row for Budget
   const bgTotRow = wsBg.getRow(bgRow);
   const bgEndDataRow = bgRow - 1;
   bgTotRow.values = [
     "TOTAL MONTHLY BUDGET",
-    bgEndDataRow >= 2 ? { formula: `SUM(B2:B${bgEndDataRow})`, result: totalBgLimit } : 0,
-    bgEndDataRow >= 2 ? { formula: `SUM(C2:C${bgEndDataRow})`, result: totalBgSpent } : 0,
-    bgEndDataRow >= 2 ? { formula: `B${bgRow}-C${bgRow}`, result: totalBgLimit - totalBgSpent } : 0,
-    bgEndDataRow >= 2 ? { formula: `IF(B${bgRow}>0, C${bgRow}/B${bgRow}, 0)`, result: totalBgLimit > 0 ? totalBgSpent / totalBgLimit : 0 } : 0,
+    data.budgets.length > 0 ? { formula: `SUM(B2:B${bgEndDataRow})`, result: totalBgLimit } : 0,
+    data.budgets.length > 0 ? { formula: `SUM(C2:C${bgEndDataRow})`, result: totalBgSpent } : 0,
+    data.budgets.length > 0 ? { formula: `B${bgRow}-C${bgRow}`, result: totalBgLimit - totalBgSpent } : 0,
+    data.budgets.length > 0 ? { formula: `IF(B${bgRow}>0, C${bgRow}/B${bgRow}, 0)`, result: totalBgLimit > 0 ? totalBgSpent / totalBgLimit : 0 } : 0,
     totalBgSpent > totalBgLimit && totalBgLimit > 0 ? "OVER BUDGET" : "Within Budget",
   ];
   bgTotRow.font = fontTotal;
@@ -933,11 +1006,10 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   bgTotRow.getCell(5).alignment = alignRight;
   bgTotRow.getCell(6).alignment = alignCenter;
   bgTotRow.height = 24;
-  for (let c = 1; c <= 6; c++) bgTotRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsBg, 1, bgRow, 6, bgRow, borderTotal, fillTotal);
 
-  autoFit(wsBg, 16);
-  wsBg.getColumn("A").width = 28;
-  wsBg.getColumn("B").width = 20;
+  wsBg.getColumn("A").width = 30;
+  wsBg.getColumn("B").width = 22;
   wsBg.getColumn("C").width = 24;
   wsBg.getColumn("D").width = 22;
   wsBg.getColumn("E").width = 16;
@@ -973,65 +1045,81 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsInv.getRow(1).getCell(8).alignment = alignRight;
   wsInv.getRow(1).getCell(9).alignment = alignRight;
   wsInv.getRow(1).getCell(10).alignment = alignCenter;
-  for (let c = 1; c <= 10; c++) wsInv.getRow(1).getCell(c).border = borderThin;
+  applyRangeStyle(wsInv, 1, 1, 10, 1, borderThin, fillHeader);
 
   let invRow = 2;
-  const invExpectedTotRow = data.investments.length + 2;
+  const invExpectedTotRow = data.investments.length > 0 ? data.investments.length + 2 : 3;
 
-  data.investments.forEach((inv, idx) => {
-    const gain = inv.current - inv.invested;
-    const roi = inv.invested > 0 ? gain / inv.invested : 0;
-    const alloc = totalPortfolioCurrentVal > 0 ? inv.current / totalPortfolioCurrentVal : 0;
-
+  if (data.investments.length === 0) {
     const r = wsInv.getRow(invRow);
-    r.values = [
-      inv.name,
-      inv.symbol || "—",
-      inv.type || "Stock",
-      inv.units || 1,
-      inv.invested,
-      inv.current,
-      { formula: `F${invRow}-E${invRow}`, result: gain },
-      { formula: `IF(E${invRow}>0, G${invRow}/E${invRow}, 0)`, result: roi },
-      { formula: `IF($F$${invExpectedTotRow}>0, F${invRow}/$F$${invExpectedTotRow}, 0)`, result: alloc },
-      inv.date ? inv.date.slice(0, 10) : todayStr,
-    ];
-
+    r.values = ["No investment assets recorded", "—", "—", 0, 0, 0, 0, 0, 0, "—"];
     r.getCell(1).alignment = alignLeft;
-    r.getCell(2).alignment = alignLeft;
-    r.getCell(3).alignment = alignLeft;
-    r.getCell(4).alignment = alignRight;
-    r.getCell(4).numFmt = "#,##0.00";
-    r.getCell(5).alignment = alignRight;
+    r.getCell(1).font = fontMutedItalic;
     r.getCell(5).numFmt = currencyNumFmt;
-    r.getCell(6).alignment = alignRight;
     r.getCell(6).numFmt = currencyNumFmt;
-    r.getCell(7).alignment = alignRight;
     r.getCell(7).numFmt = currencyNumFmt;
-    r.getCell(8).alignment = alignRight;
     r.getCell(8).numFmt = percentFmt;
-    r.getCell(9).alignment = alignRight;
     r.getCell(9).numFmt = percentFmt;
     r.getCell(10).alignment = alignCenter;
-    r.getCell(10).numFmt = "YYYY-MM-DD";
-
-    // P&L color styling
-    const pnlCell = r.getCell(7);
-    if (gain >= 0) {
-      pnlCell.font = { name: "Segoe UI", size: 10, bold: true, color: THEME.textGreen };
-    } else {
-      pnlCell.font = { name: "Segoe UI", size: 10, bold: true, color: THEME.textRed };
-    }
-
-    const rowFill = idx % 2 === 0 ? fillZebra : { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white };
-    for (let c = 1; c <= 10; c++) {
-      if (c !== 7) r.getCell(c).font = fontRegular;
-      r.getCell(c).fill = rowFill;
-      r.getCell(c).border = borderThin;
-    }
-    r.height = 20;
+    applyRangeStyle(wsInv, 1, invRow, 10, invRow, borderThin, fillWhite);
+    r.height = 22;
     invRow++;
-  });
+  } else {
+    data.investments.forEach((inv, idx) => {
+      const gain = inv.current - inv.invested;
+      const roi = inv.invested > 0 ? gain / inv.invested : 0;
+      const alloc = totalPortfolioCurrentVal > 0 ? inv.current / totalPortfolioCurrentVal : 0;
+
+      const r = wsInv.getRow(invRow);
+      r.values = [
+        inv.name,
+        inv.symbol || "—",
+        inv.type || "Stock",
+        inv.units || 1,
+        inv.invested,
+        inv.current,
+        { formula: `F${invRow}-E${invRow}`, result: gain },
+        { formula: `IF(E${invRow}>0, G${invRow}/E${invRow}, 0)`, result: roi },
+        { formula: `IF($F$${invExpectedTotRow}>0, F${invRow}/$F$${invExpectedTotRow}, 0)`, result: alloc },
+        inv.date ? inv.date.slice(0, 10) : todayStr,
+      ];
+
+      r.getCell(1).alignment = alignLeft;
+      r.getCell(2).alignment = alignLeft;
+      r.getCell(3).alignment = alignLeft;
+      r.getCell(4).alignment = alignRight;
+      r.getCell(4).numFmt = "#,##0.00";
+      r.getCell(5).alignment = alignRight;
+      r.getCell(5).numFmt = currencyNumFmt;
+      r.getCell(6).alignment = alignRight;
+      r.getCell(6).numFmt = currencyNumFmt;
+      r.getCell(7).alignment = alignRight;
+      r.getCell(7).numFmt = currencyNumFmt;
+      r.getCell(8).alignment = alignRight;
+      r.getCell(8).numFmt = percentFmt;
+      r.getCell(9).alignment = alignRight;
+      r.getCell(9).numFmt = percentFmt;
+      r.getCell(10).alignment = alignCenter;
+      r.getCell(10).numFmt = "YYYY-MM-DD";
+
+      // P&L color styling
+      const pnlCell = r.getCell(7);
+      if (gain >= 0) {
+        pnlCell.font = { name: "Segoe UI", size: 10, bold: true, color: THEME.textGreen };
+      } else {
+        pnlCell.font = { name: "Segoe UI", size: 10, bold: true, color: THEME.textRed };
+      }
+
+      const rowFill = idx % 2 === 0 ? fillZebra : fillWhite;
+      for (let c = 1; c <= 10; c++) {
+        if (c !== 7) r.getCell(c).font = fontRegular;
+        r.getCell(c).fill = rowFill;
+        r.getCell(c).border = borderThin;
+      }
+      r.height = 22;
+      invRow++;
+    });
+  }
 
   // Portfolio Total Row
   const invTotRow = wsInv.getRow(invRow);
@@ -1041,10 +1129,10 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     "",
     "",
     "",
-    invEndDataRow >= 2 ? { formula: `SUM(E2:E${invEndDataRow})`, result: totalInvestedVal } : 0,
-    invEndDataRow >= 2 ? { formula: `SUM(F2:F${invEndDataRow})`, result: totalPortfolioCurrentVal } : 0,
-    invEndDataRow >= 2 ? { formula: `SUM(G2:G${invEndDataRow})`, result: totalPortfolioGainVal } : 0,
-    invEndDataRow >= 2 ? { formula: `IF(E${invRow}>0, G${invRow}/E${invRow}, 0)`, result: totalInvestedVal > 0 ? totalPortfolioGainVal / totalInvestedVal : 0 } : 0,
+    data.investments.length > 0 ? { formula: `SUM(E2:E${invEndDataRow})`, result: totalInvestedVal } : 0,
+    data.investments.length > 0 ? { formula: `SUM(F2:F${invEndDataRow})`, result: totalPortfolioCurrentVal } : 0,
+    data.investments.length > 0 ? { formula: `SUM(G2:G${invEndDataRow})`, result: totalPortfolioGainVal } : 0,
+    data.investments.length > 0 ? { formula: `IF(E${invRow}>0, G${invRow}/E${invRow}, 0)`, result: totalInvestedVal > 0 ? totalPortfolioGainVal / totalInvestedVal : 0 } : 0,
     1,
     "",
   ];
@@ -1062,17 +1150,17 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   invTotRow.getCell(9).alignment = alignRight;
   invTotRow.getCell(10).alignment = alignCenter;
   invTotRow.height = 24;
-  for (let c = 1; c <= 10; c++) invTotRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsInv, 1, invRow, 10, invRow, borderTotal, fillTotal);
   wsInv.mergeCells(`A${invRow}:D${invRow}`);
+  wsInv.getCell(`A${invRow}`).alignment = alignLeft;
 
-  autoFit(wsInv, 14);
-  wsInv.getColumn("A").width = 26;
+  wsInv.getColumn("A").width = 28;
   wsInv.getColumn("B").width = 16;
   wsInv.getColumn("C").width = 16;
   wsInv.getColumn("D").width = 14;
-  wsInv.getColumn("E").width = 20;
+  wsInv.getColumn("E").width = 22;
   wsInv.getColumn("F").width = 22;
-  wsInv.getColumn("G").width = 20;
+  wsInv.getColumn("G").width = 22;
   wsInv.getColumn("H").width = 14;
   wsInv.getColumn("I").width = 14;
   wsInv.getColumn("J").width = 16;
@@ -1110,63 +1198,76 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsEmi.getRow(1).getCell(9).alignment = alignRight;
   wsEmi.getRow(1).getCell(10).alignment = alignRight;
   wsEmi.getRow(1).getCell(12).alignment = alignCenter;
-  for (let c = 1; c <= 12; c++) wsEmi.getRow(1).getCell(c).border = borderThin;
+  applyRangeStyle(wsEmi, 1, 1, 12, 1, borderThin, fillHeader);
 
   let emiRow = 2;
   let totalLoanAmtVal = 0;
 
-  data.emis.forEach((e, idx) => {
-    const remMonths = Math.max(0, e.totalTenureMonths - e.paidMonths);
-    const estRemaining = e.monthlyEmi * remMonths;
-    const loanPrincipal = e.totalAmount || (e.monthlyEmi * e.totalTenureMonths);
-    totalLoanAmtVal += loanPrincipal;
-
+  if (data.emis.length === 0) {
     const r = wsEmi.getRow(emiRow);
-    r.values = [
-      e.name,
-      e.lender || "—",
-      e.category || "Personal Loan",
-      e.monthlyEmi,
-      e.totalTenureMonths,
-      e.paidMonths,
-      { formula: `MAX(0, E${emiRow}-F${emiRow})`, result: remMonths },
-      (e.interestRate || 0) / 100,
-      loanPrincipal,
-      { formula: `D${emiRow}*G${emiRow}`, result: estRemaining },
-      e.autoDebitAccount || "Main Account",
-      e.dueDay || 5,
-    ];
-
+    r.values = ["No active loans or EMI debt recorded", "—", "—", 0, 0, 0, 0, 0, 0, 0, "—", "—"];
     r.getCell(1).alignment = alignLeft;
-    r.getCell(2).alignment = alignLeft;
-    r.getCell(3).alignment = alignLeft;
-    r.getCell(4).alignment = alignRight;
+    r.getCell(1).font = fontMutedItalic;
     r.getCell(4).numFmt = currencyNumFmt;
-    r.getCell(5).alignment = alignRight;
-    r.getCell(5).numFmt = "#,##0";
-    r.getCell(6).alignment = alignRight;
-    r.getCell(6).numFmt = "#,##0";
-    r.getCell(7).alignment = alignRight;
-    r.getCell(7).numFmt = "#,##0";
-    r.getCell(8).alignment = alignRight;
-    r.getCell(8).numFmt = percentFmt;
-    r.getCell(9).alignment = alignRight;
     r.getCell(9).numFmt = currencyNumFmt;
-    r.getCell(10).alignment = alignRight;
     r.getCell(10).numFmt = currencyNumFmt;
-    r.getCell(11).alignment = alignLeft;
-    r.getCell(12).alignment = alignCenter;
-
-    const rowFill = idx % 2 === 0 ? fillZebra : { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white };
-    for (let c = 1; c <= 12; c++) {
-      const cell = r.getCell(c);
-      cell.font = fontRegular;
-      cell.fill = rowFill;
-      cell.border = borderThin;
-    }
-    r.height = 20;
+    applyRangeStyle(wsEmi, 1, emiRow, 12, emiRow, borderThin, fillWhite);
+    r.height = 22;
     emiRow++;
-  });
+  } else {
+    data.emis.forEach((e, idx) => {
+      const remMonths = Math.max(0, e.totalTenureMonths - e.paidMonths);
+      const estRemaining = e.monthlyEmi * remMonths;
+      const loanPrincipal = e.totalAmount || (e.monthlyEmi * e.totalTenureMonths);
+      totalLoanAmtVal += loanPrincipal;
+
+      const r = wsEmi.getRow(emiRow);
+      r.values = [
+        e.name,
+        e.lender || "—",
+        e.category || "Personal Loan",
+        e.monthlyEmi,
+        e.totalTenureMonths,
+        e.paidMonths,
+        { formula: `MAX(0, E${emiRow}-F${emiRow})`, result: remMonths },
+        (e.interestRate || 0) / 100,
+        loanPrincipal,
+        { formula: `D${emiRow}*G${emiRow}`, result: estRemaining },
+        e.autoDebitAccount || "Main Account",
+        e.dueDay || 5,
+      ];
+
+      r.getCell(1).alignment = alignLeft;
+      r.getCell(2).alignment = alignLeft;
+      r.getCell(3).alignment = alignLeft;
+      r.getCell(4).alignment = alignRight;
+      r.getCell(4).numFmt = currencyNumFmt;
+      r.getCell(5).alignment = alignRight;
+      r.getCell(5).numFmt = "#,##0";
+      r.getCell(6).alignment = alignRight;
+      r.getCell(6).numFmt = "#,##0";
+      r.getCell(7).alignment = alignRight;
+      r.getCell(7).numFmt = "#,##0";
+      r.getCell(8).alignment = alignRight;
+      r.getCell(8).numFmt = percentFmt;
+      r.getCell(9).alignment = alignRight;
+      r.getCell(9).numFmt = currencyNumFmt;
+      r.getCell(10).alignment = alignRight;
+      r.getCell(10).numFmt = currencyNumFmt;
+      r.getCell(11).alignment = alignLeft;
+      r.getCell(12).alignment = alignCenter;
+
+      const rowFill = idx % 2 === 0 ? fillZebra : fillWhite;
+      for (let c = 1; c <= 12; c++) {
+        const cell = r.getCell(c);
+        cell.font = fontRegular;
+        cell.fill = rowFill;
+        cell.border = borderThin;
+      }
+      r.height = 22;
+      emiRow++;
+    });
+  }
 
   // EMI Total Row
   const emiTotRow = wsEmi.getRow(emiRow);
@@ -1175,13 +1276,13 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     "TOTAL DEBT LIABILITIES",
     "",
     "",
-    emiEndDataRow >= 2 ? { formula: `SUM(D2:D${emiEndDataRow})`, result: totalMonthlyEmiVal } : 0,
+    data.emis.length > 0 ? { formula: `SUM(D2:D${emiEndDataRow})`, result: totalMonthlyEmiVal } : 0,
     "",
     "",
     "",
     "",
-    emiEndDataRow >= 2 ? { formula: `SUM(I2:I${emiEndDataRow})`, result: totalLoanAmtVal } : 0,
-    emiEndDataRow >= 2 ? { formula: `SUM(J2:J${emiEndDataRow})`, result: totalRemainingDebtVal } : 0,
+    data.emis.length > 0 ? { formula: `SUM(I2:I${emiEndDataRow})`, result: totalLoanAmtVal } : 0,
+    data.emis.length > 0 ? { formula: `SUM(J2:J${emiEndDataRow})`, result: totalRemainingDebtVal } : 0,
     "",
     "",
   ];
@@ -1194,21 +1295,21 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   emiTotRow.getCell(9).alignment = alignRight;
   emiTotRow.getCell(10).alignment = alignRight;
   emiTotRow.height = 24;
-  for (let c = 1; c <= 12; c++) emiTotRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsEmi, 1, emiRow, 12, emiRow, borderTotal, fillTotal);
   wsEmi.mergeCells(`A${emiRow}:C${emiRow}`);
+  wsEmi.getCell(`A${emiRow}`).alignment = alignLeft;
 
-  autoFit(wsEmi, 14);
-  wsEmi.getColumn("A").width = 24;
-  wsEmi.getColumn("B").width = 20;
-  wsEmi.getColumn("C").width = 18;
-  wsEmi.getColumn("D").width = 18;
+  wsEmi.getColumn("A").width = 26;
+  wsEmi.getColumn("B").width = 22;
+  wsEmi.getColumn("C").width = 20;
+  wsEmi.getColumn("D").width = 20;
   wsEmi.getColumn("E").width = 16;
   wsEmi.getColumn("F").width = 16;
   wsEmi.getColumn("G").width = 16;
   wsEmi.getColumn("H").width = 18;
   wsEmi.getColumn("I").width = 22;
   wsEmi.getColumn("J").width = 24;
-  wsEmi.getColumn("K").width = 20;
+  wsEmi.getColumn("K").width = 22;
   wsEmi.getColumn("L").width = 12;
 
   // ==========================================
@@ -1237,73 +1338,89 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsSav.getRow(1).getCell(5).alignment = alignRight;
   wsSav.getRow(1).getCell(6).alignment = alignCenter;
   wsSav.getRow(1).getCell(7).alignment = alignCenter;
-  for (let c = 1; c <= 7; c++) wsSav.getRow(1).getCell(c).border = borderThin;
+  applyRangeStyle(wsSav, 1, 1, 7, 1, borderThin, fillHeader);
 
   let savRow = 2;
   let totalSavTarget = 0;
   let totalSavSaved = 0;
 
-  data.savingsGoals.forEach((g, idx) => {
-    totalSavTarget += g.target;
-    totalSavSaved += g.saved;
-    const remaining = Math.max(0, g.target - g.saved);
-    const progress = g.target > 0 ? g.saved / g.target : 0;
-    const isCompleted = g.saved >= g.target && g.target > 0;
-
+  if (data.savingsGoals.length === 0) {
     const r = wsSav.getRow(savRow);
-    r.values = [
-      g.name,
-      g.target,
-      g.saved,
-      { formula: `MAX(0, B${savRow}-C${savRow})`, result: remaining },
-      { formula: `IF(B${savRow}>0, C${savRow}/B${savRow}, 0)`, result: progress },
-      g.deadline ? g.deadline.slice(0, 10) : "—",
-      isCompleted ? "Achieved" : progress >= 0.5 ? "On Track" : "In Progress",
-    ];
-
+    r.values = ["No savings goals recorded", 0, 0, 0, 0, "—", "—"];
     r.getCell(1).alignment = alignLeft;
-    r.getCell(2).alignment = alignRight;
+    r.getCell(1).font = fontMutedItalic;
     r.getCell(2).numFmt = currencyNumFmt;
-    r.getCell(3).alignment = alignRight;
     r.getCell(3).numFmt = currencyNumFmt;
-    r.getCell(4).alignment = alignRight;
     r.getCell(4).numFmt = currencyNumFmt;
-    r.getCell(5).alignment = alignRight;
     r.getCell(5).numFmt = percentFmt;
     r.getCell(6).alignment = alignCenter;
     r.getCell(7).alignment = alignCenter;
-
-    // Status pill
-    const statusCell = r.getCell(7);
-    if (isCompleted) {
-      statusCell.font = { name: "Segoe UI", size: 9, bold: true, color: THEME.textGreen };
-      statusCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.bgGreen };
-    } else {
-      statusCell.font = { name: "Segoe UI", size: 9, bold: true, color: THEME.navyAccent };
-      statusCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.iceBlue };
-    }
-
-    const rowFill = idx % 2 === 0 ? fillZebra : { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white };
-    for (let c = 1; c <= 6; c++) {
-      const cell = r.getCell(c);
-      cell.font = fontRegular;
-      cell.fill = rowFill;
-      cell.border = borderThin;
-    }
-    statusCell.border = borderThin;
-    r.height = 20;
+    applyRangeStyle(wsSav, 1, savRow, 7, savRow, borderThin, fillWhite);
+    r.height = 22;
     savRow++;
-  });
+  } else {
+    data.savingsGoals.forEach((g, idx) => {
+      totalSavTarget += g.target;
+      totalSavSaved += g.saved;
+      const remaining = Math.max(0, g.target - g.saved);
+      const progress = g.target > 0 ? g.saved / g.target : 0;
+      const isCompleted = g.saved >= g.target && g.target > 0;
+
+      const r = wsSav.getRow(savRow);
+      r.values = [
+        g.name,
+        g.target,
+        g.saved,
+        { formula: `MAX(0, B${savRow}-C${savRow})`, result: remaining },
+        { formula: `IF(B${savRow}>0, C${savRow}/B${savRow}, 0)`, result: progress },
+        g.deadline ? g.deadline.slice(0, 10) : "—",
+        { formula: `IF(C${savRow}>=B${savRow}, "Achieved", IF(B${savRow}>0, IF(C${savRow}/B${savRow}>=0.5, "On Track", "In Progress"), "In Progress"))`, result: isCompleted ? "Achieved" : progress >= 0.5 ? "On Track" : "In Progress" },
+      ];
+
+      r.getCell(1).alignment = alignLeft;
+      r.getCell(2).alignment = alignRight;
+      r.getCell(2).numFmt = currencyNumFmt;
+      r.getCell(3).alignment = alignRight;
+      r.getCell(3).numFmt = currencyNumFmt;
+      r.getCell(4).alignment = alignRight;
+      r.getCell(4).numFmt = currencyNumFmt;
+      r.getCell(5).alignment = alignRight;
+      r.getCell(5).numFmt = percentFmt;
+      r.getCell(6).alignment = alignCenter;
+      r.getCell(7).alignment = alignCenter;
+
+      // Status pill
+      const statusCell = r.getCell(7);
+      if (isCompleted) {
+        statusCell.font = { name: "Segoe UI", size: 9, bold: true, color: THEME.textGreen };
+        statusCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.bgGreen };
+      } else {
+        statusCell.font = { name: "Segoe UI", size: 9, bold: true, color: THEME.navyAccent };
+        statusCell.fill = { type: "pattern", pattern: "solid", fgColor: THEME.iceBlue };
+      }
+
+      const rowFill = idx % 2 === 0 ? fillZebra : fillWhite;
+      for (let c = 1; c <= 6; c++) {
+        const cell = r.getCell(c);
+        cell.font = fontRegular;
+        cell.fill = rowFill;
+        cell.border = borderThin;
+      }
+      statusCell.border = borderThin;
+      r.height = 22;
+      savRow++;
+    });
+  }
 
   // Savings Total Row
   const savTotRow = wsSav.getRow(savRow);
   const savEndDataRow = savRow - 1;
   savTotRow.values = [
     "TOTAL SAVINGS COMMITTED",
-    savEndDataRow >= 2 ? { formula: `SUM(B2:B${savEndDataRow})`, result: totalSavTarget } : 0,
-    savEndDataRow >= 2 ? { formula: `SUM(C2:C${savEndDataRow})`, result: totalSavSaved } : 0,
-    savEndDataRow >= 2 ? { formula: `SUM(D2:D${savEndDataRow})`, result: Math.max(0, totalSavTarget - totalSavSaved) } : 0,
-    savEndDataRow >= 2 ? { formula: `IF(B${savRow}>0, C${savRow}/B${savRow}, 0)`, result: totalSavTarget > 0 ? totalSavSaved / totalSavTarget : 0 } : 0,
+    data.savingsGoals.length > 0 ? { formula: `SUM(B2:B${savEndDataRow})`, result: totalSavTarget } : 0,
+    data.savingsGoals.length > 0 ? { formula: `SUM(C2:C${savEndDataRow})`, result: totalSavSaved } : 0,
+    data.savingsGoals.length > 0 ? { formula: `SUM(D2:D${savEndDataRow})`, result: Math.max(0, totalSavTarget - totalSavSaved) } : 0,
+    data.savingsGoals.length > 0 ? { formula: `IF(B${savRow}>0, C${savRow}/B${savRow}, 0)`, result: totalSavTarget > 0 ? totalSavSaved / totalSavTarget : 0 } : 0,
     "-",
     totalSavSaved >= totalSavTarget && totalSavTarget > 0 ? "All Achieved" : "In Progress",
   ];
@@ -1320,15 +1437,15 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   savTotRow.getCell(6).alignment = alignCenter;
   savTotRow.getCell(7).alignment = alignCenter;
   savTotRow.height = 24;
-  for (let c = 1; c <= 7; c++) savTotRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsSav, 1, savRow, 7, savRow, borderTotal, fillTotal);
+  wsSav.mergeCells(`A${savRow}:A${savRow}`);
 
-  autoFit(wsSav, 16);
-  wsSav.getColumn("A").width = 28;
-  wsSav.getColumn("B").width = 20;
-  wsSav.getColumn("C").width = 20;
+  wsSav.getColumn("A").width = 30;
+  wsSav.getColumn("B").width = 22;
+  wsSav.getColumn("C").width = 22;
   wsSav.getColumn("D").width = 22;
   wsSav.getColumn("E").width = 16;
-  wsSav.getColumn("F").width = 18;
+  wsSav.getColumn("F").width = 16;
   wsSav.getColumn("G").width = 18;
 
   // ==========================================
@@ -1345,6 +1462,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   nwTitle.font = fontTitle;
   nwTitle.fill = fillTitle;
   nwTitle.alignment = alignCenter;
+  applyRangeStyle(wsNw, 1, 1, 4, 1, borderThin, fillTitle);
   wsNw.getRow(1).height = 40;
 
   // Metadata
@@ -1365,6 +1483,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   aHeader.font = fontSection;
   aHeader.fill = fillSection;
   aHeader.alignment = alignLeft;
+  applyRangeStyle(wsNw, 1, 4, 4, 4, borderThin, fillSection);
   wsNw.getRow(4).height = 24;
 
   wsNw.getRow(5).values = ["Asset Description", "Classification", "Valuation Basis", "Current Value (₹)"];
@@ -1372,7 +1491,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsNw.getRow(5).fill = fillHeader;
   wsNw.getRow(5).height = 24;
   wsNw.getRow(5).getCell(4).alignment = alignRight;
-  for (let c = 1; c <= 4; c++) wsNw.getRow(5).getCell(c).border = borderThin;
+  applyRangeStyle(wsNw, 1, 5, 4, 5, borderThin, fillHeader);
 
   let nwRow = 6;
   const assetStartRow = nwRow;
@@ -1394,7 +1513,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     wsNw.getRow(nwRow).getCell(c).fill = fillSection;
     wsNw.getRow(nwRow).getCell(c).border = borderThin;
   }
-  wsNw.getRow(nwRow).height = 20;
+  wsNw.getRow(nwRow).height = 22;
   nwRow++;
 
   // 2. Investment Portfolio summary row
@@ -1414,33 +1533,47 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     wsNw.getRow(nwRow).getCell(c).fill = fillZebra;
     wsNw.getRow(nwRow).getCell(c).border = borderThin;
   }
-  wsNw.getRow(nwRow).height = 20;
+  wsNw.getRow(nwRow).height = 22;
   nwRow++;
 
   // 3. Fixed & Tangible Assets from data.assets
-  tangibleAssets.forEach((a, idx) => {
+  if (tangibleAssets.length === 0) {
     const r = wsNw.getRow(nwRow);
-    r.values = [
-      a.name,
-      a.type || "Tangible Asset",
-      "Appraised Value",
-      a.value,
-    ];
+    r.values = ["Personal & Household Tangible Assets (Unappraised)", "Tangible Asset", "Estimated", 0];
     r.getCell(1).alignment = alignLeft;
+    r.getCell(1).font = fontMutedItalic;
     r.getCell(2).alignment = alignLeft;
     r.getCell(3).alignment = alignLeft;
     r.getCell(4).alignment = alignRight;
     r.getCell(4).numFmt = currencyNumFmt;
-
-    const rowFill = idx % 2 === 0 ? { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white } : fillZebra;
-    for (let c = 1; c <= 4; c++) {
-      r.getCell(c).font = fontRegular;
-      r.getCell(c).fill = rowFill;
-      r.getCell(c).border = borderThin;
-    }
-    r.height = 20;
+    applyRangeStyle(wsNw, 1, nwRow, 4, nwRow, borderThin, fillWhite);
+    r.height = 22;
     nwRow++;
-  });
+  } else {
+    tangibleAssets.forEach((a, idx) => {
+      const r = wsNw.getRow(nwRow);
+      r.values = [
+        a.name,
+        a.type || "Tangible Asset",
+        "Appraised Value",
+        a.value,
+      ];
+      r.getCell(1).alignment = alignLeft;
+      r.getCell(2).alignment = alignLeft;
+      r.getCell(3).alignment = alignLeft;
+      r.getCell(4).alignment = alignRight;
+      r.getCell(4).numFmt = currencyNumFmt;
+
+      const rowFill = idx % 2 === 0 ? fillWhite : fillZebra;
+      for (let c = 1; c <= 4; c++) {
+        r.getCell(c).font = fontRegular;
+        r.getCell(c).fill = rowFill;
+        r.getCell(c).border = borderThin;
+      }
+      r.height = 22;
+      nwRow++;
+    });
+  }
 
   // Assets Total
   const assetEndRow = nwRow - 1;
@@ -1456,8 +1589,9 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   assetTotRow.getCell(4).numFmt = currencyNumFmt;
   assetTotRow.getCell(4).alignment = alignRight;
   assetTotRow.height = 24;
-  for (let c = 1; c <= 4; c++) assetTotRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsNw, 1, nwRow, 4, nwRow, borderTotal, fillTotal);
   wsNw.mergeCells(`A${nwRow}:C${nwRow}`);
+  wsNw.getCell(`A${nwRow}`).alignment = alignLeft;
   const assetTotalRowIdx = nwRow;
   nwRow += 2;
 
@@ -1468,6 +1602,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   lHeader.font = fontSection;
   lHeader.fill = fillSection;
   lHeader.alignment = alignLeft;
+  applyRangeStyle(wsNw, 1, nwRow, 4, nwRow, borderThin, fillSection);
   wsNw.getRow(nwRow).height = 24;
   nwRow++;
 
@@ -1476,7 +1611,7 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   wsNw.getRow(nwRow).fill = fillHeader;
   wsNw.getRow(nwRow).height = 24;
   wsNw.getRow(nwRow).getCell(4).alignment = alignRight;
-  for (let c = 1; c <= 4; c++) wsNw.getRow(nwRow).getCell(c).border = borderThin;
+  applyRangeStyle(wsNw, 1, nwRow, 4, nwRow, borderThin, fillHeader);
   nwRow++;
 
   const liabStartRow = nwRow;
@@ -1498,33 +1633,47 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
     wsNw.getRow(nwRow).getCell(c).fill = fillZebra;
     wsNw.getRow(nwRow).getCell(c).border = borderThin;
   }
-  wsNw.getRow(nwRow).height = 20;
+  wsNw.getRow(nwRow).height = 22;
   nwRow++;
 
   // 2. Short-term Liabilities from data.liabilities
-  data.liabilities.forEach((l, idx) => {
+  if (data.liabilities.length === 0) {
     const r = wsNw.getRow(nwRow);
-    r.values = [
-      l.name,
-      l.type || "Short-Term Liability",
-      "Current Payable",
-      l.amount,
-    ];
+    r.values = ["Short-Term & Revolving Credit Dues", "Current Liability", "No Outstanding", 0];
     r.getCell(1).alignment = alignLeft;
+    r.getCell(1).font = fontMutedItalic;
     r.getCell(2).alignment = alignLeft;
     r.getCell(3).alignment = alignLeft;
     r.getCell(4).alignment = alignRight;
     r.getCell(4).numFmt = currencyNumFmt;
-
-    const rowFill = idx % 2 === 0 ? { type: "pattern" as const, pattern: "solid" as const, fgColor: THEME.white } : fillZebra;
-    for (let c = 1; c <= 4; c++) {
-      r.getCell(c).font = fontRegular;
-      r.getCell(c).fill = rowFill;
-      r.getCell(c).border = borderThin;
-    }
-    r.height = 20;
+    applyRangeStyle(wsNw, 1, nwRow, 4, nwRow, borderThin, fillWhite);
+    r.height = 22;
     nwRow++;
-  });
+  } else {
+    data.liabilities.forEach((l, idx) => {
+      const r = wsNw.getRow(nwRow);
+      r.values = [
+        l.name,
+        l.type || "Short-Term Liability",
+        "Current Payable",
+        l.amount,
+      ];
+      r.getCell(1).alignment = alignLeft;
+      r.getCell(2).alignment = alignLeft;
+      r.getCell(3).alignment = alignLeft;
+      r.getCell(4).alignment = alignRight;
+      r.getCell(4).numFmt = currencyNumFmt;
+
+      const rowFill = idx % 2 === 0 ? fillWhite : fillZebra;
+      for (let c = 1; c <= 4; c++) {
+        r.getCell(c).font = fontRegular;
+        r.getCell(c).fill = rowFill;
+        r.getCell(c).border = borderThin;
+      }
+      r.height = 22;
+      nwRow++;
+    });
+  }
 
   // Liabilities Total
   const liabEndRow = nwRow - 1;
@@ -1540,8 +1689,9 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   liabTotRow.getCell(4).numFmt = currencyNumFmt;
   liabTotRow.getCell(4).alignment = alignRight;
   liabTotRow.height = 24;
-  for (let c = 1; c <= 4; c++) liabTotRow.getCell(c).border = borderTotal;
+  applyRangeStyle(wsNw, 1, nwRow, 4, nwRow, borderTotal, fillTotal);
   wsNw.mergeCells(`A${nwRow}:C${nwRow}`);
+  wsNw.getCell(`A${nwRow}`).alignment = alignLeft;
   const liabTotalRowIdx = nwRow;
   nwRow += 2;
 
@@ -1563,13 +1713,12 @@ export async function exportFinancialStatementExcel(data: AppData, options: Expo
   nwFinalVal.numFmt = currencyNumFmt;
   nwFinalVal.alignment = alignRight;
   wsNw.getRow(nwRow).height = 30;
-  for (let c = 1; c <= 4; c++) wsNw.getRow(nwRow).getCell(c).border = borderTotal;
+  applyRangeStyle(wsNw, 1, nwRow, 4, nwRow, borderTotal, fillTitle);
 
-  autoFit(wsNw, 18);
   wsNw.getColumn("A").width = 44;
   wsNw.getColumn("B").width = 28;
   wsNw.getColumn("C").width = 24;
-  wsNw.getColumn("D").width = 24;
+  wsNw.getColumn("D").width = 26;
 
   // ==========================================
   // BROWSER DOWNLOAD TRIGGER
