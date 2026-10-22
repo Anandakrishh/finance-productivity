@@ -7,19 +7,59 @@ import { exportFinancialStatementExcel } from "../lib/exportFinancialExcel";
 const categories = ["Salary", "Freelance", "Housing", "Food", "Shopping", "Transport", "Subscriptions", "Health", "Entertainment", "Other"];
 const accounts = ["Bank Account", "Credit Card", "UPI", "Cash"];
 
+/**
+ * Returns the current month key dynamically formatted as "YYYY-MM" (e.g., "2026-10")
+ * according to the user's local calendar time.
+ */
+function getCurrentMonthKey(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  return `${year}-${month}`;
+}
+
+/**
+ * Returns today's ISO date (YYYY-MM-DD) in local timezone to avoid UTC day-shift bugs.
+ */
+function getTodayIsoDate(): string {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
 function Transactions() {
   const { data, setTransactions } = useAppData();
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"all" | TransactionType>("all");
-  const [selectedMonth, setSelectedMonth] = useState<string>("all");
+  // Default to the current month & year dynamically at runtime (e.g., "2026-10")
+  const [selectedMonth, setSelectedMonth] = useState<string>(() => getCurrentMonthKey());
   const [show, setShow] = useState(false);
   const [editing, setEditing] = useState<AppTransaction | null>(null);
-  const [form, setForm] = useState({ description: "", category: "Food", amount: "", date: new Date().toISOString().slice(0, 10), type: "expense" as TransactionType, account: "UPI" });
+  const [form, setForm] = useState({
+    description: "",
+    category: "Food",
+    amount: "",
+    date: getTodayIsoDate(),
+    type: "expense" as TransactionType,
+    account: "UPI",
+  });
   const [exportingExcel, setExportingExcel] = useState(false);
 
   const handleExportExcel = async () => {
     try {
       setExportingExcel(true);
+      if (selectedMonth !== "all") {
+        const [y, m] = selectedMonth.split("-").map(Number);
+        if (y && m) {
+          const startDate = `${y}-${String(m).padStart(2, "0")}-01`;
+          const lastDay = new Date(y, m, 0).getDate();
+          const endDate = `${y}-${String(m).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+          await exportFinancialStatementExcel(data, { startDate, endDate });
+          return;
+        }
+      }
       await exportFinancialStatementExcel(data);
     } catch (err) {
       console.error("Excel export error:", err);
@@ -29,34 +69,53 @@ function Transactions() {
     }
   };
 
+  // 1. Filter transactions by the selected month & year (or all time if "all")
   const monthTransactions = useMemo(() => {
     if (selectedMonth === "all") return data.transactions;
     const [targetYear, targetMonth] = selectedMonth.split("-").map(Number);
     if (!targetYear || !targetMonth) return data.transactions;
     return data.transactions.filter(t => {
       const parsed = parseTransactionDate(t.date);
-      return parsed && parsed.year === targetYear && parsed.month === targetMonth;
+      return Boolean(parsed && parsed.year === targetYear && parsed.month === targetMonth);
     });
   }, [data.transactions, selectedMonth]);
 
-  const list = useMemo(() => {
+  // 2. Visible transactions after search query and type filter (income/expense)
+  const visibleTransactions = useMemo(() => {
+    const q = query.trim().toLowerCase();
     return monthTransactions
-      .filter(t => (filter === "all" || t.type === filter) && `${t.description} ${t.category}`.toLowerCase().includes(query.toLowerCase()))
-      .sort((a, b) => b.date.localeCompare(a.date));
+      .filter(t => {
+        const matchesType = filter === "all" || t.type === filter;
+        if (!matchesType) return false;
+        if (!q) return true;
+        const text = `${t.description || ""} ${t.category || ""} ${t.account || ""}`.toLowerCase();
+        return text.includes(q);
+      })
+      .sort((a, b) => (b.date || "").localeCompare(a.date || ""));
   }, [monthTransactions, filter, query]);
 
-  const income = useMemo(() => monthTransactions.filter(t => t.type === "income").reduce((s, t) => s + t.amount, 0), [monthTransactions]);
-  const expenses = useMemo(() => monthTransactions.filter(t => t.type === "expense").reduce((s, t) => s + t.amount, 0), [monthTransactions]);
+  // 3. Keep summaries synchronized with visible transactions
+  const income = useMemo(
+    () => visibleTransactions.filter(t => t.type === "income").reduce((s, t) => s + (Number(t.amount) || 0), 0),
+    [visibleTransactions]
+  );
+  const expenses = useMemo(
+    () => visibleTransactions.filter(t => t.type === "expense").reduce((s, t) => s + (Number(t.amount) || 0), 0),
+    [visibleTransactions]
+  );
+  const netFlow = income - expenses;
+  const entriesCount = visibleTransactions.length;
 
   const selectedMonthLabel = useMemo(() => {
     if (selectedMonth === "all") return "All Time";
-    const [y, m] = selectedMonth.split("-");
-    return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString("en-US", { month: "short", year: "numeric" });
+    const [y, m] = selectedMonth.split("-").map(Number);
+    if (!y || !m) return "All Time";
+    return new Date(y, m - 1, 15).toLocaleDateString("en-US", { month: "short", year: "numeric" });
   }, [selectedMonth]);
 
   const openNew = () => {
     setEditing(null);
-    const today = new Date().toISOString().slice(0, 10);
+    const today = getTodayIsoDate();
     const defaultDate = selectedMonth !== "all" && !today.startsWith(selectedMonth) ? `${selectedMonth}-01` : today;
     setForm({ description: "", category: "Food", amount: "", date: defaultDate, type: "expense", account: "UPI" });
     setShow(true);
@@ -64,13 +123,28 @@ function Transactions() {
 
   const edit = (t: AppTransaction) => {
     setEditing(t);
-    setForm({ description: t.description, category: t.category, amount: String(t.amount), date: t.date, type: t.type, account: t.account || "UPI" });
+    setForm({
+      description: t.description,
+      category: t.category,
+      amount: String(t.amount),
+      date: t.date,
+      type: t.type,
+      account: t.account || "UPI",
+    });
     setShow(true);
   };
 
   const save = () => {
     if (!form.description || !form.amount) return;
-    const payload = { description: form.description, title: form.description, category: form.category, amount: Number(form.amount), date: form.date, type: form.type, account: form.account };
+    const payload = {
+      description: form.description,
+      title: form.description,
+      category: form.category,
+      amount: Number(form.amount),
+      date: form.date,
+      type: form.type,
+      account: form.account,
+    };
     if (editing) {
       setTransactions(l => l.map(t => (t.id === editing.id ? { ...t, ...payload } : t)));
     } else {
@@ -111,8 +185,8 @@ function Transactions() {
       <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi label="Income" value={formatMoney(income)} detail={selectedMonth !== "all" ? selectedMonthLabel : undefined} />
         <Kpi label="Expenses" value={formatMoney(expenses)} detail={selectedMonth !== "all" ? selectedMonthLabel : undefined} />
-        <Kpi label="Net flow" value={formatMoney(income - expenses)} detail={selectedMonth !== "all" ? selectedMonthLabel : undefined} />
-        <Kpi label="Entries" value={monthTransactions.length} detail={selectedMonth !== "all" ? `in ${selectedMonthLabel}` : "all time"} />
+        <Kpi label="Net flow" value={formatMoney(netFlow)} detail={selectedMonth !== "all" ? selectedMonthLabel : undefined} />
+        <Kpi label="Entries" value={entriesCount} detail={selectedMonth !== "all" ? `in ${selectedMonthLabel}` : "all time"} />
       </div>
 
       <LiquidCard className="overflow-hidden">
@@ -127,7 +201,7 @@ function Transactions() {
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`rounded-xl px-3 py-2 text-[10px] uppercase tracking-wider ${filter === f ? "bg-white text-black" : "bg-white/[.03] text-zinc-500 hover:text-zinc-300"}`}
+                  className={`rounded-xl px-3 py-2 text-[10px] uppercase tracking-wider transition ${filter === f ? "bg-white text-black font-semibold" : "bg-white/[.03] text-zinc-500 hover:text-zinc-300"}`}
                 >
                   {f}
                 </button>
@@ -136,8 +210,8 @@ function Transactions() {
             {selectedMonth !== "all" && (
               <button
                 onClick={() => setSelectedMonth("all")}
-                className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 text-[10px] text-zinc-400 hover:text-white"
-                title="Clear month filter"
+                className="rounded-xl border border-white/[0.08] bg-white/[0.03] px-2.5 py-1.5 text-[10px] text-zinc-400 hover:text-white transition"
+                title="Clear month filter and view all months"
               >
                 Clear month ({selectedMonthLabel})
               </button>
@@ -146,29 +220,49 @@ function Transactions() {
         </div>
 
         <div className="divide-y divide-white/[.05]">
-          {list.map(t => (
-            <div key={t.id} className="flex items-center gap-3 p-4">
+          {visibleTransactions.map(t => (
+            <div key={t.id} className="flex items-center gap-3 p-4 transition hover:bg-white/[0.02]">
               <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${t.type === "income" ? "bg-emerald-400/10 text-emerald-300" : "bg-red-400/10 text-red-300"}`}>
                 {t.type === "income" ? <ArrowUpRight size={16} /> : <ArrowDownLeft size={16} />}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="truncate text-xs text-zinc-300">{t.description}</p>
-                <p className="mt-1 text-[9px] text-zinc-600">{t.category} · {t.account || "Account"} · {formatDate(t.date)}</p>
+                <p className="truncate text-xs text-zinc-300 font-medium">{t.description}</p>
+                <p className="mt-1 text-[9px] text-zinc-500">{t.category} · {t.account || "Account"} · {formatDate(t.date)}</p>
               </div>
-              <p className={`text-xs font-medium ${t.type === "income" ? "text-emerald-300" : "text-zinc-300"}`}>
+              <p className={`text-xs font-semibold ${t.type === "income" ? "text-emerald-300" : "text-zinc-200"}`}>
                 {t.type === "income" ? "+" : "-"}{formatMoney(t.amount)}
               </p>
-              <button onClick={() => edit(t)} className="p-2 text-zinc-700 hover:text-white" title="Edit">
+              <button onClick={() => edit(t)} className="p-2 text-zinc-600 hover:text-white transition" title="Edit">
                 <Pencil size={13} />
               </button>
-              <button onClick={() => setTransactions(l => l.filter(x => x.id !== t.id))} className="p-2 text-zinc-700 hover:text-red-300" title="Delete">
+              <button onClick={() => setTransactions(l => l.filter(x => x.id !== t.id))} className="p-2 text-zinc-600 hover:text-red-300 transition" title="Delete">
                 <Trash2 size={13} />
               </button>
             </div>
           ))}
-          {!list.length && (
-            <div className="p-12 text-center text-xs text-zinc-600">
-              No transactions found {selectedMonth !== "all" ? `for ${selectedMonthLabel}` : ""}.
+          {!visibleTransactions.length && (
+            <div className="p-12 text-center text-xs">
+              <p className="font-medium text-zinc-400">
+                {query.trim()
+                  ? `No transactions matching "${query}"`
+                  : `No transactions found ${selectedMonth !== "all" ? `for ${selectedMonthLabel}` : ""}`}
+              </p>
+              <p className="mt-1.5 text-[11px] text-zinc-600">
+                {selectedMonth !== "all" ? (
+                  <>
+                    Try choosing another month, or{" "}
+                    <button
+                      onClick={() => setSelectedMonth("all")}
+                      className="text-[#22B8FF] underline underline-offset-2 hover:text-[#55c8ff] transition"
+                    >
+                      view All Months
+                    </button>
+                    .
+                  </>
+                ) : (
+                  "Add a transaction to get started."
+                )}
+              </p>
             </div>
           )}
         </div>
