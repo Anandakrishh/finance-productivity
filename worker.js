@@ -1,5 +1,28 @@
 // Cloudflare Worker + D1 backend for PULSE. Zero paid services required.
 
+const ALLOWED_ORIGINS = [
+  'https://ak-finance-productivity.vercel.app',
+  'https://pulse.hello-anandha.workers.dev',
+];
+
+function getCorsHeaders(request) {
+  const origin = request?.headers?.get('Origin') || '';
+  const isAllowed =
+    ALLOWED_ORIGINS.includes(origin) ||
+    origin.endsWith('.vercel.app') ||
+    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
+  const allowOrigin = isAllowed ? origin : (origin || '*');
+
+  return {
+    'Access-Control-Allow-Origin': allowOrigin,
+    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin',
+  };
+}
+
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
@@ -422,42 +445,65 @@ async function replaceTableData(request, env, tableName) {
 
 async function handleApi(request, env) {
   const url = new URL(request.url);
+  const corsHeaders = getCorsHeaders(request);
 
   if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: CORS_HEADERS });
+    return new Response(null, { status: 204, headers: corsHeaders });
   }
 
   try {
+    let res;
     if (request.method === 'POST' && url.pathname === '/api/auth/register') {
-      return await register(request, env);
-    }
-    if (request.method === 'POST' && url.pathname === '/api/auth/create-user') {
-      return await createUser(request, env);
-    }
-    if (request.method === 'POST' && url.pathname === '/api/auth/login') {
-      return await login(request, env);
-    }
-    if (request.method === 'GET' && url.pathname === '/api/auth/me') {
-      return await getMe(request, env);
-    }
-    if (request.method === 'POST' && url.pathname === '/api/auth/reset-password') {
-      return await resetPassword(request, env);
-    }
-    if (request.method === 'GET' && url.pathname === '/api/data') {
-      return await getData(request, env);
-    }
-    if (request.method === 'PUT' && url.pathname.startsWith('/api/data/')) {
+      res = await register(request, env);
+    } else if (request.method === 'POST' && url.pathname === '/api/auth/create-user') {
+      res = await createUser(request, env);
+    } else if (request.method === 'POST' && url.pathname === '/api/auth/login') {
+      res = await login(request, env);
+    } else if (request.method === 'GET' && url.pathname === '/api/auth/me') {
+      res = await getMe(request, env);
+    } else if (request.method === 'POST' && url.pathname === '/api/auth/reset-password') {
+      res = await resetPassword(request, env);
+    } else if (request.method === 'GET' && url.pathname === '/api/data') {
+      res = await getData(request, env);
+    } else if (request.method === 'PUT' && url.pathname.startsWith('/api/data/')) {
       const tableName = url.pathname.replace('/api/data/', '');
-      return await replaceTableData(request, env, tableName);
+      res = await replaceTableData(request, env, tableName);
+    } else {
+      res = json({ error: 'Endpoint not found' }, 404);
     }
 
-    return json({ error: 'Endpoint not found' }, 404);
+    const headers = new Headers(res.headers);
+    for (const [key, value] of Object.entries(corsHeaders)) {
+      headers.set(key, value);
+    }
+    return new Response(res.body, {
+      status: res.status,
+      statusText: res.statusText,
+      headers,
+    });
   } catch (err) {
     if (err.message === 'UNAUTHORIZED') {
-      return json({ error: 'Please sign in.' }, 401);
+      return new Response(JSON.stringify({ error: 'Please sign in.' }), {
+        status: 401,
+        headers: {
+          'content-type': 'application/json',
+          'cache-control': 'no-store',
+          ...corsHeaders,
+        },
+      });
     }
     console.error('Worker API error:', err);
-    return json({ error: err.message || 'Internal Server Error' }, 500);
+    return new Response(
+      JSON.stringify({ error: 'The service is temporarily unavailable. Please try again later.' }),
+      {
+        status: 500,
+        headers: {
+          'content-type': 'application/json',
+          'cache-control': 'no-store',
+          ...corsHeaders,
+        },
+      }
+    );
   }
 }
 
@@ -484,7 +530,7 @@ export default {
     }
 
     return new Response('PULSE Cloudflare Worker API is running.', {
-      headers: { 'content-type': 'text/plain', ...CORS_HEADERS },
+      headers: { 'content-type': 'text/plain', ...getCorsHeaders(request) },
     });
   },
 };

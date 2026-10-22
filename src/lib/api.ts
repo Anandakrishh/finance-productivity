@@ -8,7 +8,32 @@ export interface AuthUser {
 const TOKEN_KEY = "pulse_auth_token";
 const USER_KEY = "pulse_auth_user";
 
-const API_BASE = (import.meta.env.VITE_API_URL as string | undefined) || "";
+const CLOUDFLARE_BACKEND_URL = "https://pulse.hello-anandha.workers.dev";
+
+export function getApiBaseUrl(): string {
+  // 1. Prioritize explicit environment variable if set in Vercel or .env
+  const envUrl = (import.meta.env.VITE_API_URL as string | undefined)?.trim();
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, "");
+  }
+
+  // 2. In browser environments:
+  if (typeof window !== "undefined") {
+    const { hostname } = window.location;
+
+    // If served directly from Cloudflare Workers, relative requests are same-origin
+    if (hostname.endsWith(".workers.dev")) {
+      return "";
+    }
+
+    // When deployed on Vercel or running locally without VITE_API_URL, default to the production Cloudflare backend
+    return CLOUDFLARE_BACKEND_URL;
+  }
+
+  return CLOUDFLARE_BACKEND_URL;
+}
+
+const API_BASE = getApiBaseUrl();
 
 export function getStoredToken(): string | null {
   try {
@@ -67,14 +92,45 @@ export async function apiRequest<T = any>(
   }
 
   const url = `${API_BASE}${path}`;
-  const res = await fetch(url, { ...options, headers });
+
+  let res: Response;
+  try {
+    res = await fetch(url, { ...options, headers });
+  } catch (networkErr) {
+    console.error("Network or connection error:", networkErr);
+    throw new Error(
+      "Unable to connect to the server. Please check your connection and try again."
+    );
+  }
 
   const contentType = res.headers.get("content-type") || "";
   const isJson = contentType.includes("application/json");
-  const data = isJson ? await res.json() : await res.text();
+
+  let data: any = null;
+  try {
+    data = isJson ? await res.json() : await res.text();
+  } catch {
+    data = null;
+  }
 
   if (!res.ok) {
-    const message = (isJson && data?.error) || res.statusText || "Request failed";
+    let message = "";
+    if (isJson && data && typeof data === "object" && typeof data.error === "string") {
+      message = data.error;
+    } else if (res.status === 401) {
+      message = "Invalid email or password.";
+    } else if (res.status === 403) {
+      message = "Access denied. You do not have permission to access this resource.";
+    } else if (res.status === 404) {
+      message = "The requested service endpoint was not found. Please verify the backend configuration.";
+    } else if (res.status >= 500) {
+      message = "The service is temporarily unavailable. Please try again later.";
+    } else {
+      message =
+        (typeof data === "string" && data.length < 120 && data.trim()) ||
+        res.statusText ||
+        `Request failed with status ${res.status}.`;
+    }
     throw new Error(message);
   }
 
